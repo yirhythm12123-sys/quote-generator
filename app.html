@@ -139,7 +139,7 @@
               <th style="min-width:160px">品目名</th>
               <th>数量</th><th>単位</th><th>出値単価</th>
               <th>出元</th><th>費用区分</th><th>利益モード</th>
-              <th>提示単価</th><th>金額</th><th></th>
+              <th>自動計算額</th><th>顧客出値</th><th>備考</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -167,8 +167,15 @@
                 </select>
                 <span v-else class="fixed-mode">{{ profitLabel(profitOptions(item)[0]) }}</span>
               </td>
-              <td class="calc">{{ fmt(calcUnitPrice(item)) }}</td>
               <td class="calc">{{ fmt(calcLineTotal(item)) }}</td>
+              <td :class="{ calc: calcLineTotal(item) % 1000 === 0 }">
+                <input type="number" step="1000" min="0"
+                       :value="effectiveCustomerPrice(item)"
+                       :disabled="calcLineTotal(item) % 1000 === 0"
+                       @change="setCustomerPrice(item, $event.target.value)"
+                       class="num">
+              </td>
+              <td><input type="text" v-model="item.note"></td>
               <td><button class="danger small" @click="removeLine(i)">削除</button></td>
             </tr>
           </tbody>
@@ -273,7 +280,8 @@
     }
     function newLineItem() {
       return { name: "", source: "部", feeType: "initial", profitMode: "sales",
-               quantity: 1, unit: "式", unitOfferPrice: 0 };
+               quantity: 1, unit: "式", unitOfferPrice: 0,
+               customerPrice: null, note: "" };
     }
     function newCase(name) { return { name, lineItems: [newLineItem()] }; }
 
@@ -311,7 +319,19 @@
           }
         }
         function calcLineTotal(item) { return calcUnitPrice(item) * (Number(item.quantity) || 0); }
-        function calcCustomerPrice(item) { return calcLineTotal(item); }
+        function effectiveCustomerPrice(item) {
+          const auto = calcLineTotal(item);
+          if (auto % 1000 === 0) return auto;
+          if (item.customerPrice != null && Number.isFinite(item.customerPrice) && item.customerPrice >= auto) {
+            return item.customerPrice;
+          }
+          return Math.ceil(auto / 1000) * 1000;
+        }
+        function setCustomerPrice(item, val) {
+          const n = Number(val);
+          item.customerPrice = Number.isFinite(n) ? n : null;
+        }
+        function calcCustomerPrice(item) { return effectiveCustomerPrice(item); }
         function calcPlanRequest(item) {
           const cp = calcCustomerPrice(item);
           return (item.profitMode === "sales" || item.profitMode === "both")
@@ -326,10 +346,10 @@
 
         function caseTotalsByFee(feeType) {
           return activeCase.value.lineItems.filter(i => i.feeType === feeType)
-            .reduce((s, i) => s + calcLineTotal(i), 0);
+            .reduce((s, i) => s + effectiveCustomerPrice(i), 0);
         }
         function caseGrandTotal() {
-          return activeCase.value.lineItems.reduce((s, i) => s + calcLineTotal(i), 0);
+          return activeCase.value.lineItems.reduce((s, i) => s + effectiveCustomerPrice(i), 0);
         }
         function summaryTotals(c = activeCase.value) {
           return c.lineItems.reduce((acc, i) => {
@@ -476,7 +496,7 @@
           ws.getCell(row, 1).font = { size: 11 };
           row += 2;
 
-          const grandTotal = c.lineItems.reduce((s, i) => s + calcLineTotal(i), 0);
+          const grandTotal = c.lineItems.reduce((s, i) => s + effectiveCustomerPrice(i), 0);
           for (const ft of FEE_ORDER) {
             const items = c.lineItems.filter(i => i.feeType === ft);
             if (items.length === 0) continue;
@@ -498,7 +518,7 @@
             row++;
             items.forEach((item, idx) => {
               const vals = [idx + 1, item.name || "", Number(item.quantity) || 0, item.unit || "",
-                            calcUnitPrice(item), calcLineTotal(item), "", ""];
+                            calcUnitPrice(item), effectiveCustomerPrice(item), item.note || "", ""];
               vals.forEach((v, i) => {
                 const cell = ws.getCell(row, i + 1);
                 cell.value = v;
@@ -511,7 +531,7 @@
               });
               row++;
             });
-            const subtotal = items.reduce((s, i) => s + calcLineTotal(i), 0);
+            const subtotal = items.reduce((s, i) => s + effectiveCustomerPrice(i), 0);
             ws.mergeCells(row, 1, row, 4);
             const stLabel = ws.getCell(row, 1);
             stLabel.value = `${FEE_LABELS[ft]} 小計`;
@@ -682,7 +702,7 @@
           quote, activeCaseIndex, activeCase,
           feeOrder: FEE_ORDER,
           profitOptions, profitLabel, onSourceFeeChange,
-          calcUnitPrice, calcLineTotal,
+          calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice,
           calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
           caseTotalsByFee, caseGrandTotal,
           summaryTotals, summaryItemsByFee, summarySubtotals, feeLabel, grossMarginPct,
