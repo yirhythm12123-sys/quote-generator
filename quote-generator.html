@@ -429,6 +429,10 @@
           }
           // 単位は費用区分に応じて自動更新
           item.unit = DEFAULT_UNITS[item.feeType] || "式";
+          // 月額基本料金は備考に定型文を自動セット
+          if (item.feeType === "monthly_base") {
+            item.note = "月の基本利用料金";
+          }
         }
         function presetsFor(feeType) { return PRESETS[feeType] || []; }
         function onPresetChange(item) {
