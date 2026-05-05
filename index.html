@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>見積書自動作成ツール</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+</head>
+<body>
+  <div id="app" class="app">
+    <h1>見積書自動作成ツール</h1>
+
+    <section class="card">
+      <h2>共通情報</h2>
+      <div class="form-grid">
+        <label>見積番号
+          <input type="text" v-model="quote.quoteNumber" placeholder="例: Q-2026-0001">
+        </label>
+        <label>発行日
+          <input type="date" v-model="quote.issueDate">
+        </label>
+        <label>有効期限
+          <input type="date" v-model="quote.validUntil">
+        </label>
+      </div>
+
+      <h3>顧客情報</h3>
+      <div class="form-grid">
+        <label>会社名
+          <input type="text" v-model="quote.customer.company">
+        </label>
+        <label>敬称
+          <select v-model="quote.customer.honorific">
+            <option value="御中">御中</option>
+            <option value="様">様</option>
+          </select>
+        </label>
+        <label>部署
+          <input type="text" v-model="quote.customer.department">
+        </label>
+        <label>担当者
+          <input type="text" v-model="quote.customer.contact">
+        </label>
+      </div>
+
+      <h3>自社情報</h3>
+      <div class="form-grid">
+        <label>会社名
+          <input type="text" v-model="quote.ourCompany.company">
+        </label>
+        <label>部署
+          <input type="text" v-model="quote.ourCompany.department">
+        </label>
+        <label class="full">住所
+          <input type="text" v-model="quote.ourCompany.address">
+        </label>
+        <label>担当
+          <input type="text" v-model="quote.ourCompany.staff">
+        </label>
+        <label>上長
+          <input type="text" v-model="quote.ourCompany.manager">
+        </label>
+      </div>
+
+      <h3>備考</h3>
+      <div class="form-grid">
+        <label class="full">
+          <textarea v-model="quote.notes" placeholder="特記事項があれば記入"></textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>案（複数作成可）</h2>
+      <div class="case-tabs">
+        <div
+          v-for="(c, idx) in quote.cases"
+          :key="idx"
+          class="case-tab"
+          :class="{ active: idx === activeCaseIndex }"
+          @click="activeCaseIndex = idx"
+        >{{ c.name }}</div>
+        <div class="case-actions">
+          <button class="ghost small" @click="renameCase">案名変更</button>
+          <button class="ghost small" @click="addCase">案を追加</button>
+          <button class="danger small" @click="removeCase" :disabled="quote.cases.length <= 1">案を削除</button>
+        </div>
+      </div>
+
+      <div v-if="activeCase">
+        <h3>{{ activeCase.name }} の明細</h3>
+        <table class="lines">
+          <thead>
+            <tr>
+              <th style="min-width:160px">品目名</th>
+              <th>数量</th>
+              <th>単位</th>
+              <th>出値単価</th>
+              <th>出元</th>
+              <th>費用区分</th>
+              <th>利益モード</th>
+              <th>提示単価</th>
+              <th>金額</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, i) in activeCase.lineItems" :key="i">
+              <td><input type="text" v-model="item.name"></td>
+              <td><input type="number" min="0" step="1" v-model.number="item.quantity" class="num"></td>
+              <td><input type="text" v-model="item.unit" style="width:60px"></td>
+              <td><input type="number" min="0" step="1" v-model.number="item.unitOfferPrice" class="num"></td>
+              <td>
+                <select v-model="item.source" @change="onSourceFeeChange(item)">
+                  <option value="部">部</option>
+                  <option value="SE">SE</option>
+                </select>
+              </td>
+              <td>
+                <select v-model="item.feeType" @change="onSourceFeeChange(item)">
+                  <option value="initial">初期</option>
+                  <option value="monthly">月額</option>
+                  <option value="spot">都度</option>
+                </select>
+              </td>
+              <td>
+                <select v-if="profitOptions(item).length > 1" v-model="item.profitMode">
+                  <option v-for="m in profitOptions(item)" :key="m" :value="m">{{ profitLabel(m) }}</option>
+                </select>
+                <span v-else class="fixed-mode">{{ profitLabel(profitOptions(item)[0]) }}</span>
+              </td>
+              <td class="calc">{{ fmt(calcUnitPrice(item)) }}</td>
+              <td class="calc">{{ fmt(calcLineTotal(item)) }}</td>
+              <td><button class="danger small" @click="removeLine(i)">削除</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;">
+          <button class="ghost small" @click="addLine">行を追加</button>
+        </div>
+
+        <div class="totals">
+          <div class="tile" v-if="caseTotalsByFee('initial') > 0">
+            <div class="label">初期費用 計</div>
+            <div class="value">{{ fmt(caseTotalsByFee('initial')) }} 円</div>
+          </div>
+          <div class="tile" v-if="caseTotalsByFee('monthly') > 0">
+            <div class="label">月額費用 計</div>
+            <div class="value">{{ fmt(caseTotalsByFee('monthly')) }} 円</div>
+          </div>
+          <div class="tile" v-if="caseTotalsByFee('spot') > 0">
+            <div class="label">都度費用 計</div>
+            <div class="value">{{ fmt(caseTotalsByFee('spot')) }} 円</div>
+          </div>
+          <div class="tile">
+            <div class="label">案合計（税抜）</div>
+            <div class="value">{{ fmt(caseGrandTotal()) }} 円</div>
+          </div>
+        </div>
+
+        <details class="summary-panel" open>
+          <summary>【内部用サマリ】※社外秘</summary>
+          <div class="summary-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>品目</th>
+                  <th>顧客出値</th>
+                  <th>企画依頼金額</th>
+                  <th>営業利益</th>
+                  <th>SE出値</th>
+                  <th>粗利</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, i) in activeCase.lineItems" :key="i">
+                  <td>{{ item.name || '(無題)' }}</td>
+                  <td class="num">{{ fmt(calcCustomerPrice(item)) }}</td>
+                  <td class="num">{{ fmt(calcPlanRequest(item)) }}</td>
+                  <td class="num">{{ fmt(calcSalesProfit(item)) }}</td>
+                  <td class="num">{{ fmt(calcSEAmount(item)) }}</td>
+                  <td class="num">{{ fmt(calcGrossProfit(item)) }}</td>
+                </tr>
+                <tr class="total">
+                  <td>案合計</td>
+                  <td class="num">{{ fmt(summaryTotals().customer) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().planRequest) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().salesProfit) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().seAmount) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().grossProfit) }}（粗利率 {{ grossMarginPct() }}%）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <div class="export-bar">
+      <span class="muted">案ごとに1シートで出力されます</span>
+      <button @click="exportExcel">Excel出力</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
