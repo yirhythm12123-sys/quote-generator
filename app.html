@@ -38,7 +38,8 @@
     }
     .case-tab.active { background: #fff; font-weight: bold; color: #2c5d8f; }
     .case-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
-    table.lines { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .lines-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+    table.lines { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 0.85rem; }
     table.lines th, table.lines td { border: 1px solid #d0d0d0; padding: 4px 6px; vertical-align: middle; }
     table.lines th { background: #eef2f6; font-weight: 600; text-align: center; white-space: nowrap; }
     table.lines td input, table.lines td select {
@@ -145,6 +146,7 @@
 
       <div v-if="activeCase">
         <h3>{{ activeCase.name }} の明細</h3>
+        <div class="lines-wrapper">
         <table class="lines">
           <thead>
             <tr>
@@ -187,8 +189,11 @@
                     <option value="reset">元に戻す</option>
                   </select>
                 </template>
-                <input v-else type="number" min="0" step="1"
-                       v-model.number="item.unitOfferPrice" class="num">
+                <input v-else type="text" inputmode="numeric"
+                       v-model="item.unitOfferPrice"
+                       @blur="item.unitOfferPrice = fmt(asNum(item.unitOfferPrice))"
+                       @focus="item.unitOfferPrice = String(asNum(item.unitOfferPrice))"
+                       class="num">
               </td>
               <td>
                 <select v-model="item.source" @change="onSourceFeeChange(item)">
@@ -209,8 +214,8 @@
               <td :class="{ calc: !isTextItem(item) && calcLineTotal(item) % 1000 === 0 }">
                 <div v-if="isTextItem(item)" style="text-align:center; color:#888;">{{ item.priceText }}</div>
                 <div v-else class="price-control">
-                  <input type="number" step="1000" min="0"
-                         :value="effectiveCustomerPrice(item)"
+                  <input type="text" inputmode="numeric"
+                         :value="fmt(effectiveCustomerPrice(item))"
                          :disabled="calcLineTotal(item) % 1000 === 0"
                          @change="setCustomerPrice(item, $event.target.value)"
                          class="num">
@@ -228,6 +233,7 @@
             </tr>
           </tbody>
         </table>
+        </div>
         <div style="margin-top:8px;"><button class="ghost small" @click="addLine">行を追加</button></div>
 
         <div class="totals">
@@ -380,6 +386,12 @@
     const meterAdjustOptions = [];
     for (let i = -15; i <= 15; i++) meterAdjustOptions.push(Math.round(i) / 10);
 
+    function asNum(v) {
+      if (v === null || v === undefined || v === "") return 0;
+      const s = String(v).replace(/,/g, "").trim();
+      const n = Number(s);
+      return Number.isFinite(n) ? n : 0;
+    }
     function todayISO() {
       const d = new Date();
       const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -443,7 +455,7 @@
           item.name = p.name;
           if (p.profit !== undefined) item.profitMode = p.profit;
           if (p.price !== undefined) {
-            item.unitOfferPrice = p.price;
+            item.unitOfferPrice = fmt(p.price);
             item.priceText = "";
           }
           if (p.isMeter) {
@@ -464,7 +476,7 @@
 
         function calcUnitPrice(item) {
           if (isTextItem(item)) return 0;
-          const p = Number(item.unitOfferPrice) || 0;
+          const p = asNum(item.unitOfferPrice);
           switch (item.profitMode) {
             case "both":  return Math.round(p / 0.8 / 0.9);
             case "sales": return Math.round(p / 0.9);
@@ -475,7 +487,7 @@
         }
         function calcLineTotal(item) {
           if (isTextItem(item)) return 0;
-          return calcUnitPrice(item) * (Number(item.quantity) || 0);
+          return calcUnitPrice(item) * asNum(item.quantity);
         }
         function effectiveCustomerPrice(item) {
           const auto = calcLineTotal(item);
@@ -486,8 +498,8 @@
           return Math.ceil(auto / 1000) * 1000;
         }
         function setCustomerPrice(item, val) {
-          const n = Number(val);
-          item.customerPrice = Number.isFinite(n) ? n : null;
+          if (val === "" || val === null || val === undefined) { item.customerPrice = null; return; }
+          item.customerPrice = asNum(val);
         }
         function bumpCustomerPrice(item, amount) {
           item.customerPrice = effectiveCustomerPrice(item) + amount;
@@ -511,7 +523,7 @@
         function calcSalesProfit(item) { return calcCustomerPrice(item) - calcPlanRequest(item); }
         function calcSEAmount(item) {
           if (item.source !== "SE" || isTextItem(item)) return 0;
-          return (Number(item.unitOfferPrice) || 0) * (Number(item.quantity) || 0);
+          return asNum(item.unitOfferPrice) * asNum(item.quantity);
         }
         function calcGrossProfit(item) { return calcPlanRequest(item) - calcSEAmount(item); }
 
