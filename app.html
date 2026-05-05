@@ -50,11 +50,17 @@
     table.lines td.calc { background: #f7faff; color: #2c5d8f; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
     table.lines td.fixed-mode { color: #888; font-size: 0.8rem; text-align: center; }
     .price-control { display: flex; flex-direction: column; gap: 2px; }
-    .price-control select.bump {
+    .price-control select.bump,
+    select.bump {
       font-size: 0.75rem; padding: 1px 4px;
       border: 1px solid #2c5d8f; color: #2c5d8f; background: #fff;
     }
     .price-control select.bump:disabled { opacity: 0.3; cursor: not-allowed; }
+    select.preset {
+      width: 100%; font-size: 0.78rem; padding: 2px 4px;
+      border: 1px solid #c0c8d0; color: #2c5d8f; background: #fbfcfd;
+      margin-bottom: 2px;
+    }
     .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 10px; }
     .totals .tile { background: #eef2f6; padding: 8px 12px; border-radius: 4px; }
     .totals .tile .label { font-size: 0.75rem; color: #555; }
@@ -142,20 +148,44 @@
         <table class="lines">
           <thead>
             <tr>
-              <th style="min-width:160px">品目名</th>
+              <th>費用区分</th>
+              <th style="min-width:200px">品目名</th>
               <th>数量</th><th>単位</th><th>出値単価</th>
-              <th>出元</th><th>費用区分</th><th>利益モード</th>
+              <th>出元</th><th>利益モード</th>
               <th>自動計算額</th><th>顧客出値</th><th>備考</th><th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(item, i) in activeCase.lineItems" :key="i">
-              <td><input type="text" v-model="item.name"></td>
+              <td>
+                <select v-model="item.feeType" @change="onSourceFeeChange(item)">
+                  <option value="initial">初期</option>
+                  <option value="monthly_base">月額基本</option>
+                  <option value="monthly_meter">月額従量</option>
+                  <option value="spot">都度</option>
+                </select>
+              </td>
+              <td>
+                <select v-if="presetsFor(item.feeType).length > 0"
+                        v-model="item.preset" @change="onPresetChange(item)" class="preset">
+                  <option value="">（自由記入）</option>
+                  <option v-for="p in presetsFor(item.feeType)" :key="p.name" :value="p.name">{{ p.name }}</option>
+                </select>
+                <input type="text" v-model="item.name" placeholder="品目名">
+              </td>
               <td><input type="number" min="0" step="1" v-model.number="item.quantity" class="num"></td>
               <td><input type="text" v-model="item.unit" style="width:60px"></td>
               <td>
-                <input v-if="item.feeType === 'monthly_meter'" type="text"
-                       v-model="item.priceText" placeholder="例: 売上の3%">
+                <template v-if="item.feeType === 'monthly_meter'">
+                  <input type="text" v-model="item.priceText" placeholder="例: 売上の3%">
+                  <select v-if="item.preset === '月の従量料金'"
+                          v-model.number="item.meterAdjustPct"
+                          @change="onMeterAdjustChange(item)" class="bump">
+                    <option v-for="pct in meterAdjustOptions" :key="pct" :value="pct">
+                      {{ (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' }}
+                    </option>
+                  </select>
+                </template>
                 <input v-else type="number" min="0" step="1"
                        v-model.number="item.unitOfferPrice" class="num">
               </td>
@@ -163,14 +193,6 @@
                 <select v-model="item.source" @change="onSourceFeeChange(item)">
                   <option value="部">部</option>
                   <option value="SE">SE</option>
-                </select>
-              </td>
-              <td>
-                <select v-model="item.feeType" @change="onSourceFeeChange(item)">
-                  <option value="initial">初期</option>
-                  <option value="monthly_base">月額基本</option>
-                  <option value="monthly_meter">月額従量</option>
-                  <option value="spot">都度</option>
                 </select>
               </td>
               <td>
@@ -318,6 +340,44 @@
       return ft;
     }
 
+    const PRESETS = {
+      initial: [
+        { name: "POS接続方式(Value'Sネット)",        price: 2000000, profit: "none" },
+        { name: "POS接続方式(専用線)",                price: 2000000, profit: "none" },
+        { name: "POS接続方式(クレジットネットワーク)", price: 2000000, profit: "none" },
+        { name: "専用端末接続方式",                   price: 600000,  profit: "none" },
+        { name: "Web接続方式",                        price: 600000,  profit: "none" },
+        { name: "PC決済画面方式",                     price: 600000,  profit: "none" },
+        { name: "ギフトカードモール(中継のみ)",        price: 600000,  profit: "none" },
+        { name: "同時導入専用端末接続方式",           price: 200000,  profit: "none" },
+        { name: "同時導入PC決済画面方式",             price: 200000,  profit: "none" },
+        { name: "同時導入Web決済接続方式",            price: 400000,  profit: "none" },
+        { name: "同時導入ギフトカードモール",         price: 600000,  profit: "none" },
+        { name: "クレジットチャージ",                 price: 50000,   profit: "none" },
+        { name: "オートチャージ",                     price: 400000,  profit: "none" },
+      ],
+      monthly_base: [
+        { name: "POS接続方式(Value'Sネット)",        price: 120000, profit: "none" },
+        { name: "POS接続方式(専用線)",                price: 120000, profit: "none" },
+        { name: "POS接続方式(クレジットネットワーク)", price: 120000, profit: "none" },
+        { name: "専用端末接続方式",                   price: 120000, profit: "none" },
+        { name: "Web接続方式",                        price: 120000, profit: "none" },
+        { name: "PC決済画面方式",                     price: 120000, profit: "none" },
+      ],
+      monthly_meter: [
+        { name: "月の従量料金",   profit: "none", isMeter: true },
+        { name: "ネットワーク課金", profit: "none" },
+      ],
+      spot: [],
+    };
+    const METER_BASE_PCT = 1.5;
+    function meterText(adjustPct) {
+      const total = METER_BASE_PCT + (Number(adjustPct) || 0);
+      return `月の入金金額に対して${total.toFixed(1)}%`;
+    }
+    const meterAdjustOptions = [];
+    for (let i = -15; i <= 15; i++) meterAdjustOptions.push(Math.round(i) / 10);
+
     function todayISO() {
       const d = new Date();
       const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -327,7 +387,8 @@
     function newLineItem() {
       return { name: "", source: "部", feeType: "initial", profitMode: "sales",
                quantity: 1, unit: "式", unitOfferPrice: 0,
-               priceText: "", customerPrice: null, note: "" };
+               priceText: "", customerPrice: null, note: "",
+               preset: "", meterAdjustPct: 0 };
     }
     function isTextItem(item) {
       return item.feeType === "monthly_meter" && (item.priceText || "").trim() !== "";
@@ -355,6 +416,37 @@
         function onSourceFeeChange(item) {
           const allowed = profitOptions(item);
           if (!allowed.includes(item.profitMode)) item.profitMode = allowed[0];
+          // 費用区分が変わったらプリセット選択をリセット
+          if (item.preset) {
+            const valid = (PRESETS[item.feeType] || []).map(p => p.name);
+            if (!valid.includes(item.preset)) item.preset = "";
+          }
+          // 月額従量以外は priceText/meterAdjustPct をクリア
+          if (item.feeType !== "monthly_meter") {
+            item.priceText = "";
+            item.meterAdjustPct = 0;
+          }
+        }
+        function presetsFor(feeType) { return PRESETS[feeType] || []; }
+        function onPresetChange(item) {
+          if (!item.preset) return;
+          const p = (PRESETS[item.feeType] || []).find(x => x.name === item.preset);
+          if (!p) return;
+          item.name = p.name;
+          if (p.profit !== undefined) item.profitMode = p.profit;
+          if (p.price !== undefined) {
+            item.unitOfferPrice = p.price;
+            item.priceText = "";
+          }
+          if (p.isMeter) {
+            item.meterAdjustPct = 0;
+            item.priceText = meterText(0);
+            item.unitOfferPrice = 0;
+          }
+          item.customerPrice = null;
+        }
+        function onMeterAdjustChange(item) {
+          item.priceText = meterText(item.meterAdjustPct);
         }
 
         function calcUnitPrice(item) {
@@ -519,38 +611,40 @@
           ws.getCell(row, 1).font = { name: "游ゴシック", size: 14, bold: true };
           ws.getCell(row, 1).border = { bottom: { style: "thin" } };
           ws.getCell(row, 6).value = "見積番号";
+          ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.quoteNumber;
-          ws.getCell(row, 8).value = "担当";
-          ws.getCell(row, 8).alignment = { horizontal: "center" };
-          ws.getCell(row, 8).font = { size: 9 };
           row++;
           ws.mergeCells(row, 1, row, 4);
           ws.getCell(row, 1).value = quote.customer.department || "";
           ws.getCell(row, 6).value = "発行日";
+          ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.issueDate;
-          ws.getCell(row, 8).value = "";
-          ws.getCell(row, 8).border = boxBorder();
-          ws.getRow(row).height = 36;
           row++;
           ws.mergeCells(row, 1, row, 4);
           ws.getCell(row, 1).value = quote.customer.contact ? `ご担当 ${quote.customer.contact} 様` : "";
           ws.getCell(row, 6).value = "有効期限";
+          ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.validUntil;
+          row++;
+          // 自社会社名 + 印枠ラベル（担当・上長 横並び）
+          ws.mergeCells(row, 1, row, 4);
+          ws.getCell(row, 1).value = quote.ourCompany.company || "";
+          ws.getCell(row, 1).font = { bold: true };
+          ws.getCell(row, 7).value = "担当";
+          ws.getCell(row, 7).alignment = { horizontal: "center" };
+          ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 8).value = "上長";
           ws.getCell(row, 8).alignment = { horizontal: "center" };
           ws.getCell(row, 8).font = { size: 9 };
           row++;
-          ws.mergeCells(row, 1, row, 4);
-          ws.getCell(row, 1).value = quote.ourCompany.company || "";
-          ws.getCell(row, 1).font = { bold: true };
-          ws.getCell(row, 8).value = "";
+          // 自社部署+住所 + 印枠ボックス（担当・上長 横並び）
+          ws.mergeCells(row, 1, row, 6);
+          ws.getCell(row, 1).value = [quote.ourCompany.department, quote.ourCompany.address].filter(Boolean).join("　");
+          ws.getCell(row, 7).border = boxBorder();
           ws.getCell(row, 8).border = boxBorder();
           ws.getRow(row).height = 36;
           row++;
-          ws.mergeCells(row, 1, row, 7);
-          ws.getCell(row, 1).value = [quote.ourCompany.department, quote.ourCompany.address].filter(Boolean).join("　");
-          row++;
-          ws.mergeCells(row, 1, row, 7);
+          ws.mergeCells(row, 1, row, 8);
           ws.getCell(row, 1).value = [
             quote.ourCompany.staff ? `担当 ${quote.ourCompany.staff}` : "",
             quote.ourCompany.manager ? `上長 ${quote.ourCompany.manager}` : "",
@@ -788,6 +882,7 @@
           feeOrder: FEE_GROUPS,
           isTextItem,
           profitOptions, profitLabel, onSourceFeeChange,
+          presetsFor, onPresetChange, onMeterAdjustChange, meterAdjustOptions,
           calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice, bumpCustomerPrice, onBumpSelect,
           bumpAmounts: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000],
           calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
