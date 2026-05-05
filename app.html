@@ -197,24 +197,41 @@
         <details class="summary-panel" open>
           <summary>【内部用サマリ】※社外秘</summary>
           <div class="summary-body">
+            <template v-for="ft in feeOrder" :key="ft">
+              <div v-if="summaryItemsByFee(ft).length > 0" style="margin-bottom:12px;">
+                <h4 style="margin:8px 0 4px; color:#c44;">【{{ feeLabel(ft) }}】</h4>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>品目</th><th>顧客出値</th><th>企画依頼金額</th>
+                      <th>営業利益</th><th>SE出値</th><th>粗利</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(item, i) in summaryItemsByFee(ft)" :key="i">
+                      <td>{{ item.name || '(無題)' }}</td>
+                      <td class="num">{{ fmt(calcCustomerPrice(item)) }}</td>
+                      <td class="num">{{ fmt(calcPlanRequest(item)) }}</td>
+                      <td class="num">{{ fmt(calcSalesProfit(item)) }}</td>
+                      <td class="num">{{ fmt(calcSEAmount(item)) }}</td>
+                      <td class="num">{{ fmt(calcGrossProfit(item)) }}</td>
+                    </tr>
+                    <tr class="total">
+                      <td>{{ feeLabel(ft) }} 小計</td>
+                      <td class="num">{{ fmt(summarySubtotals(ft).customer) }}</td>
+                      <td class="num">{{ fmt(summarySubtotals(ft).planRequest) }}</td>
+                      <td class="num">{{ fmt(summarySubtotals(ft).salesProfit) }}</td>
+                      <td class="num">{{ fmt(summarySubtotals(ft).seAmount) }}</td>
+                      <td class="num">{{ fmt(summarySubtotals(ft).grossProfit) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
             <table>
-              <thead>
-                <tr>
-                  <th>品目</th><th>顧客出値</th><th>企画依頼金額</th>
-                  <th>営業利益</th><th>SE出値</th><th>粗利</th>
-                </tr>
-              </thead>
               <tbody>
-                <tr v-for="(item, i) in activeCase.lineItems" :key="i">
-                  <td>{{ item.name || '(無題)' }}</td>
-                  <td class="num">{{ fmt(calcCustomerPrice(item)) }}</td>
-                  <td class="num">{{ fmt(calcPlanRequest(item)) }}</td>
-                  <td class="num">{{ fmt(calcSalesProfit(item)) }}</td>
-                  <td class="num">{{ fmt(calcSEAmount(item)) }}</td>
-                  <td class="num">{{ fmt(calcGrossProfit(item)) }}</td>
-                </tr>
                 <tr class="total">
-                  <td>案合計</td>
+                  <td>案 総合計</td>
                   <td class="num">{{ fmt(summaryTotals().customer) }}</td>
                   <td class="num">{{ fmt(summaryTotals().planRequest) }}</td>
                   <td class="num">{{ fmt(summaryTotals().salesProfit) }}</td>
@@ -324,6 +341,20 @@
             return acc;
           }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
         }
+        function summaryItemsByFee(ft, c = activeCase.value) {
+          return c.lineItems.filter(i => i.feeType === ft);
+        }
+        function summarySubtotals(ft, c = activeCase.value) {
+          return summaryItemsByFee(ft, c).reduce((acc, i) => {
+            acc.customer    += calcCustomerPrice(i);
+            acc.planRequest += calcPlanRequest(i);
+            acc.salesProfit += calcSalesProfit(i);
+            acc.seAmount    += calcSEAmount(i);
+            acc.grossProfit += calcGrossProfit(i);
+            return acc;
+          }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
+        }
+        function feeLabel(ft) { return FEE_LABELS[ft]; }
         function grossMarginPct(c = activeCase.value) {
           const t = summaryTotals(c);
           if (t.customer === 0) return "0.0";
@@ -539,56 +570,92 @@
           sumTitle.font = { bold: true, size: 12, color: { argb: "FFCC4444" } };
           sumTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF6E8" } };
           row++;
-          const sumHeaders = ["品目", "顧客出値", "企画依頼金額", "営業利益", "SE出値", "粗利", "", ""];
-          sumHeaders.forEach((v, idx) => {
-            const cell = ws.getCell(row, idx + 1);
-            cell.value = v;
-            if (v) {
-              cell.font = { bold: true };
-              cell.alignment = { horizontal: "center" };
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7E6D4" } };
-              cell.border = thinAll();
-            }
-          });
-          row++;
+
           const sumFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFAF2" } };
-          for (const item of c.lineItems) {
-            const vals = [item.name || "(無題)", calcCustomerPrice(item), calcPlanRequest(item),
-                          calcSalesProfit(item), calcSEAmount(item), calcGrossProfit(item)];
-            vals.forEach((v, i) => {
+          const subtotalFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7E6D4" } };
+          const grand = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 };
+
+          for (const ft of FEE_ORDER) {
+            const items = c.lineItems.filter(i => i.feeType === ft);
+            if (items.length === 0) continue;
+
+            // 区分見出し
+            ws.mergeCells(row, 1, row, COLS);
+            const sectionLabel = ws.getCell(row, 1);
+            sectionLabel.value = `【${FEE_LABELS[ft]}】`;
+            sectionLabel.font = { bold: true, color: { argb: "FFCC4444" } };
+            sectionLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF6E8" } };
+            row++;
+
+            // テーブルヘッダ
+            const sumHeaders = ["品目", "顧客出値", "企画依頼金額", "営業利益", "SE出値", "粗利", "", ""];
+            sumHeaders.forEach((v, idx) => {
+              const cell = ws.getCell(row, idx + 1);
+              cell.value = v;
+              if (v) {
+                cell.font = { bold: true };
+                cell.alignment = { horizontal: "center" };
+                cell.fill = subtotalFill;
+                cell.border = thinAll();
+              }
+            });
+            row++;
+
+            // 明細
+            const sub = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 };
+            for (const item of items) {
+              const cp = calcCustomerPrice(item);
+              const pr = calcPlanRequest(item);
+              const sp = calcSalesProfit(item);
+              const se = calcSEAmount(item);
+              const gp = calcGrossProfit(item);
+              sub.customer += cp; sub.planRequest += pr; sub.salesProfit += sp; sub.seAmount += se; sub.grossProfit += gp;
+              grand.customer += cp; grand.planRequest += pr; grand.salesProfit += sp; grand.seAmount += se; grand.grossProfit += gp;
+              const vals = [item.name || "(無題)", cp, pr, sp, se, gp];
+              vals.forEach((v, i) => {
+                const cell = ws.getCell(row, i + 1);
+                cell.value = v;
+                cell.border = thinAll();
+                cell.fill = sumFill;
+                if (i >= 1) {
+                  cell.alignment = { horizontal: "right" };
+                  cell.numFmt = "#,##0";
+                }
+              });
+              row++;
+            }
+
+            // 区分小計
+            const subVals = [`${FEE_LABELS[ft]} 小計`, sub.customer, sub.planRequest, sub.salesProfit, sub.seAmount, sub.grossProfit];
+            subVals.forEach((v, i) => {
               const cell = ws.getCell(row, i + 1);
               cell.value = v;
               cell.border = thinAll();
-              cell.fill = sumFill;
+              cell.font = { bold: true };
+              cell.fill = subtotalFill;
               if (i >= 1) {
                 cell.alignment = { horizontal: "right" };
                 cell.numFmt = "#,##0";
               }
             });
-            row++;
+            row += 2;
           }
-          const tot = c.lineItems.reduce((acc, i) => {
-            acc.customer    += calcCustomerPrice(i);
-            acc.planRequest += calcPlanRequest(i);
-            acc.salesProfit += calcSalesProfit(i);
-            acc.seAmount    += calcSEAmount(i);
-            acc.grossProfit += calcGrossProfit(i);
-            return acc;
-          }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
-          const totVals = ["案合計", tot.customer, tot.planRequest, tot.salesProfit, tot.seAmount, tot.grossProfit];
+
+          // 案 総合計
+          const totVals = ["案 総合計", grand.customer, grand.planRequest, grand.salesProfit, grand.seAmount, grand.grossProfit];
           totVals.forEach((v, i) => {
             const cell = ws.getCell(row, i + 1);
             cell.value = v;
             cell.border = thinAll();
             cell.font = { bold: true };
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7E6D4" } };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE0B2" } };
             if (i >= 1) {
               cell.alignment = { horizontal: "right" };
               cell.numFmt = "#,##0";
             }
           });
           row++;
-          const margin = tot.customer === 0 ? "0.0" : (tot.grossProfit / tot.customer * 100).toFixed(1);
+          const margin = grand.customer === 0 ? "0.0" : (grand.grossProfit / grand.customer * 100).toFixed(1);
           ws.mergeCells(row, 1, row, 5);
           const marginLabel = ws.getCell(row, 1);
           marginLabel.value = "粗利率（粗利 ÷ 顧客出値）";
@@ -613,10 +680,12 @@
 
         return {
           quote, activeCaseIndex, activeCase,
+          feeOrder: FEE_ORDER,
           profitOptions, profitLabel, onSourceFeeChange,
           calcUnitPrice, calcLineTotal,
           calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
-          caseTotalsByFee, caseGrandTotal, summaryTotals, grossMarginPct,
+          caseTotalsByFee, caseGrandTotal,
+          summaryTotals, summaryItemsByFee, summarySubtotals, feeLabel, grossMarginPct,
           fmt, addLine, removeLine, addCase, removeCase, renameCase, exportExcel,
         };
       },
