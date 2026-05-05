@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>見積書自動作成ツール</title>
+  <script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Yu Gothic", "游ゴシック", "Hiragino Sans", "Meiryo", sans-serif;
+      margin: 0; padding: 24px; background: #f4f6f8; color: #222;
+    }
+    h1 { font-size: 1.6rem; margin: 0 0 16px; }
+    h2 { font-size: 1.2rem; margin: 24px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #2c5d8f; }
+    h3 { font-size: 1rem; margin: 16px 0 6px; color: #2c5d8f; }
+    .app { max-width: 1400px; margin: 0 auto; }
+    .card {
+      background: #fff; border-radius: 6px; padding: 16px 20px;
+      margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .form-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px 16px;
+    }
+    .form-grid label { display: flex; flex-direction: column; font-size: 0.85rem; color: #555; }
+    .form-grid input, .form-grid select, .form-grid textarea {
+      margin-top: 2px; padding: 6px 8px; font-size: 0.95rem;
+      border: 1px solid #ccc; border-radius: 3px; font-family: inherit;
+    }
+    .form-grid textarea { min-height: 60px; resize: vertical; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .case-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #ddd; }
+    .case-tab {
+      padding: 6px 14px; background: #e8edf2; border: 1px solid #ccc;
+      border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 0.9rem;
+    }
+    .case-tab.active { background: #fff; font-weight: bold; color: #2c5d8f; }
+    .case-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+    table.lines { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    table.lines th, table.lines td { border: 1px solid #d0d0d0; padding: 4px 6px; vertical-align: middle; }
+    table.lines th { background: #eef2f6; font-weight: 600; text-align: center; white-space: nowrap; }
+    table.lines td input, table.lines td select {
+      width: 100%; border: 1px solid transparent; padding: 3px 4px;
+      font-size: 0.85rem; background: transparent; font-family: inherit;
+    }
+    table.lines td input:focus, table.lines td select:focus { border-color: #2c5d8f; background: #fff; outline: none; }
+    table.lines td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.lines td.calc { background: #f7faff; color: #2c5d8f; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+    table.lines td.fixed-mode { color: #888; font-size: 0.8rem; text-align: center; }
+    .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 10px; }
+    .totals .tile { background: #eef2f6; padding: 8px 12px; border-radius: 4px; }
+    .totals .tile .label { font-size: 0.75rem; color: #555; }
+    .totals .tile .value { font-size: 1.1rem; font-weight: bold; text-align: right; font-variant-numeric: tabular-nums; }
+    .summary-panel { margin-top: 16px; border: 1px dashed #c44; border-radius: 4px; background: #fffaf2; }
+    .summary-panel summary { cursor: pointer; padding: 8px 12px; font-weight: bold; color: #c44; }
+    .summary-panel .summary-body { padding: 8px 12px 12px; }
+    .summary-panel table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .summary-panel th, .summary-panel td { border: 1px solid #d6b8a8; padding: 4px 6px; }
+    .summary-panel th { background: #f7e6d4; }
+    .summary-panel td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .summary-panel tr.total td { background: #f7e6d4; font-weight: bold; }
+    button {
+      cursor: pointer; border: 1px solid #2c5d8f; background: #2c5d8f;
+      color: #fff; padding: 6px 14px; border-radius: 4px; font-size: 0.9rem; font-family: inherit;
+    }
+    button.ghost { background: #fff; color: #2c5d8f; }
+    button.danger { background: #c44; border-color: #c44; }
+    button.small { padding: 3px 8px; font-size: 0.8rem; }
+    button:hover { opacity: 0.9; }
+    .export-bar {
+      position: sticky; bottom: 0; background: #fff; padding: 12px 20px;
+      border-top: 1px solid #ddd; display: flex; gap: 10px; align-items: center;
+      justify-content: flex-end; box-shadow: 0 -1px 3px rgba(0,0,0,0.06);
+    }
+    .export-bar button { font-size: 1rem; padding: 8px 24px; }
+    .muted { color: #888; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div id="app" class="app">
+    <h1>見積書自動作成ツール</h1>
+
+    <section class="card">
+      <h2>共通情報</h2>
+      <div class="form-grid">
+        <label>見積番号<input type="text" v-model="quote.quoteNumber" placeholder="例: Q-2026-0001"></label>
+        <label>発行日<input type="date" v-model="quote.issueDate"></label>
+        <label>有効期限<input type="date" v-model="quote.validUntil"></label>
+      </div>
+
+      <h3>顧客情報</h3>
+      <div class="form-grid">
+        <label>会社名<input type="text" v-model="quote.customer.company"></label>
+        <label>敬称
+          <select v-model="quote.customer.honorific">
+            <option value="御中">御中</option>
+            <option value="様">様</option>
+          </select>
+        </label>
+        <label>部署<input type="text" v-model="quote.customer.department"></label>
+        <label>担当者<input type="text" v-model="quote.customer.contact"></label>
+      </div>
+
+      <h3>自社情報</h3>
+      <div class="form-grid">
+        <label>会社名<input type="text" v-model="quote.ourCompany.company"></label>
+        <label>部署<input type="text" v-model="quote.ourCompany.department"></label>
+        <label class="full">住所<input type="text" v-model="quote.ourCompany.address"></label>
+        <label>担当<input type="text" v-model="quote.ourCompany.staff"></label>
+        <label>上長<input type="text" v-model="quote.ourCompany.manager"></label>
+      </div>
+
+      <h3>備考</h3>
+      <div class="form-grid">
+        <label class="full"><textarea v-model="quote.notes" placeholder="特記事項があれば記入"></textarea></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>案（複数作成可）</h2>
+      <div class="case-tabs">
+        <div v-for="(c, idx) in quote.cases" :key="idx"
+             class="case-tab" :class="{ active: idx === activeCaseIndex }"
+             @click="activeCaseIndex = idx">{{ c.name }}</div>
+        <div class="case-actions">
+          <button class="ghost small" @click="renameCase">案名変更</button>
+          <button class="ghost small" @click="addCase">案を追加</button>
+          <button class="danger small" @click="removeCase" :disabled="quote.cases.length <= 1">案を削除</button>
+        </div>
+      </div>
+
+      <div v-if="activeCase">
+        <h3>{{ activeCase.name }} の明細</h3>
+        <table class="lines">
+          <thead>
+            <tr>
+              <th style="min-width:160px">品目名</th>
+              <th>数量</th><th>単位</th><th>出値単価</th>
+              <th>出元</th><th>費用区分</th><th>利益モード</th>
+              <th>提示単価</th><th>金額</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, i) in activeCase.lineItems" :key="i">
+              <td><input type="text" v-model="item.name"></td>
+              <td><input type="number" min="0" step="1" v-model.number="item.quantity" class="num"></td>
+              <td><input type="text" v-model="item.unit" style="width:60px"></td>
+              <td><input type="number" min="0" step="1" v-model.number="item.unitOfferPrice" class="num"></td>
+              <td>
+                <select v-model="item.source" @change="onSourceFeeChange(item)">
+                  <option value="部">部</option>
+                  <option value="SE">SE</option>
+                </select>
+              </td>
+              <td>
+                <select v-model="item.feeType" @change="onSourceFeeChange(item)">
+                  <option value="initial">初期</option>
+                  <option value="monthly">月額</option>
+                  <option value="spot">都度</option>
+                </select>
+              </td>
+              <td>
+                <select v-if="profitOptions(item).length > 1" v-model="item.profitMode">
+                  <option v-for="m in profitOptions(item)" :key="m" :value="m">{{ profitLabel(m) }}</option>
+                </select>
+                <span v-else class="fixed-mode">{{ profitLabel(profitOptions(item)[0]) }}</span>
+              </td>
+              <td class="calc">{{ fmt(calcUnitPrice(item)) }}</td>
+              <td class="calc">{{ fmt(calcLineTotal(item)) }}</td>
+              <td><button class="danger small" @click="removeLine(i)">削除</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;"><button class="ghost small" @click="addLine">行を追加</button></div>
+
+        <div class="totals">
+          <div class="tile" v-if="caseTotalsByFee('initial') > 0">
+            <div class="label">初期費用 計</div>
+            <div class="value">{{ fmt(caseTotalsByFee('initial')) }} 円</div>
+          </div>
+          <div class="tile" v-if="caseTotalsByFee('monthly') > 0">
+            <div class="label">月額費用 計</div>
+            <div class="value">{{ fmt(caseTotalsByFee('monthly')) }} 円</div>
+          </div>
+          <div class="tile" v-if="caseTotalsByFee('spot') > 0">
+            <div class="label">都度費用 計</div>
+            <div class="value">{{ fmt(caseTotalsByFee('spot')) }} 円</div>
+          </div>
+          <div class="tile">
+            <div class="label">案合計（税抜）</div>
+            <div class="value">{{ fmt(caseGrandTotal()) }} 円</div>
+          </div>
+        </div>
+
+        <details class="summary-panel" open>
+          <summary>【内部用サマリ】※社外秘</summary>
+          <div class="summary-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>品目</th><th>顧客出値</th><th>企画依頼金額</th>
+                  <th>営業利益</th><th>SE出値</th><th>粗利</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, i) in activeCase.lineItems" :key="i">
+                  <td>{{ item.name || '(無題)' }}</td>
+                  <td class="num">{{ fmt(calcCustomerPrice(item)) }}</td>
+                  <td class="num">{{ fmt(calcPlanRequest(item)) }}</td>
+                  <td class="num">{{ fmt(calcSalesProfit(item)) }}</td>
+                  <td class="num">{{ fmt(calcSEAmount(item)) }}</td>
+                  <td class="num">{{ fmt(calcGrossProfit(item)) }}</td>
+                </tr>
+                <tr class="total">
+                  <td>案合計</td>
+                  <td class="num">{{ fmt(summaryTotals().customer) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().planRequest) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().salesProfit) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().seAmount) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().grossProfit) }}（粗利率 {{ grossMarginPct() }}%）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <div class="export-bar">
+      <span class="muted">案ごとに1シートで出力されます</span>
+      <button @click="exportExcel">Excel出力</button>
+    </div>
+  </div>
+
+  <script>
+    const PROFIT_MODE_OPTIONS = {
+      "部": { initial: ["sales", "none"], monthly: ["sales", "none"], spot: ["sales", "none"] },
+      "SE": { initial: ["both"],          monthly: ["both", "dept", "none"], spot: ["both"] },
+    };
+    const PROFIT_LABELS = {
+      both:  "部+営業 (/0.8/0.9)",
+      sales: "営業のみ (/0.9)",
+      dept:  "部のみ (/0.8)",
+      none:  "そのまま",
+    };
+    const FEE_LABELS = { initial: "初期費用", monthly: "月額費用", spot: "都度費用" };
+    const FEE_ORDER = ["initial", "monthly", "spot"];
+
+    function todayISO() {
+      const d = new Date();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${d.getFullYear()}-${m}-${day}`;
+    }
+    function newLineItem() {
+      return { name: "", source: "部", feeType: "initial", profitMode: "sales",
+               quantity: 1, unit: "式", unitOfferPrice: 0 };
+    }
+    function newCase(name) { return { name, lineItems: [newLineItem()] }; }
+
+    const { createApp, reactive, computed, ref } = Vue;
+
+    createApp({
+      setup() {
+        const quote = reactive({
+          quoteNumber: "",
+          issueDate: todayISO(),
+          validUntil: "",
+          customer: { company: "", department: "", contact: "", honorific: "御中" },
+          ourCompany: { company: "", department: "", address: "", staff: "", manager: "" },
+          notes: "",
+          cases: [newCase("案A")],
+        });
+        const activeCaseIndex = ref(0);
+        const activeCase = computed(() => quote.cases[activeCaseIndex.value]);
+
+        function profitOptions(item) { return PROFIT_MODE_OPTIONS[item.source][item.feeType]; }
+        function profitLabel(mode) { return PROFIT_LABELS[mode] || mode; }
+        function onSourceFeeChange(item) {
+          const allowed = profitOptions(item);
+          if (!allowed.includes(item.profitMode)) item.profitMode = allowed[0];
+        }
+
+        function calcUnitPrice(item) {
+          const p = Number(item.unitOfferPrice) || 0;
+          switch (item.profitMode) {
+            case "both":  return Math.round(p / 0.8 / 0.9);
+            case "sales": return Math.round(p / 0.9);
+            case "dept":  return Math.round(p / 0.8);
+            case "none":  return p;
+            default:      return p;
+          }
+        }
+        function calcLineTotal(item) { return calcUnitPrice(item) * (Number(item.quantity) || 0); }
+        function calcCustomerPrice(item) { return calcLineTotal(item); }
+        function calcPlanRequest(item) {
+          const cp = calcCustomerPrice(item);
+          return (item.profitMode === "sales" || item.profitMode === "both")
+            ? Math.round(cp * 0.9) : cp;
+        }
+        function calcSalesProfit(item) { return calcCustomerPrice(item) - calcPlanRequest(item); }
+        function calcSEAmount(item) {
+          if (item.source !== "SE") return 0;
+          return (Number(item.unitOfferPrice) || 0) * (Number(item.quantity) || 0);
+        }
+        function calcGrossProfit(item) { return calcPlanRequest(item) - calcSEAmount(item); }
+
+        function caseTotalsByFee(feeType) {
+          return activeCase.value.lineItems.filter(i => i.feeType === feeType)
+            .reduce((s, i) => s + calcLineTotal(i), 0);
+        }
+        function caseGrandTotal() {
+          return activeCase.value.lineItems.reduce((s, i) => s + calcLineTotal(i), 0);
+        }
+        function summaryTotals(c = activeCase.value) {
+          return c.lineItems.reduce((acc, i) => {
+            acc.customer    += calcCustomerPrice(i);
+            acc.planRequest += calcPlanRequest(i);
+            acc.salesProfit += calcSalesProfit(i);
+            acc.seAmount    += calcSEAmount(i);
+            acc.grossProfit += calcGrossProfit(i);
+            return acc;
+          }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
+        }
+        function grossMarginPct(c = activeCase.value) {
+          const t = summaryTotals(c);
+          if (t.customer === 0) return "0.0";
+          return (t.grossProfit / t.customer * 100).toFixed(1);
+        }
+        function fmt(n) { return (Number(n) || 0).toLocaleString("ja-JP"); }
+
+        function addLine() { activeCase.value.lineItems.push(newLineItem()); }
+        function removeLine(i) {
+          if (activeCase.value.lineItems.length <= 1) {
+            activeCase.value.lineItems.splice(i, 1, newLineItem());
+          } else {
+            activeCase.value.lineItems.splice(i, 1);
+          }
+        }
+        function addCase() {
+          const nextLetter = String.fromCharCode(65 + quote.cases.length);
+          quote.cases.push(newCase(`案${nextLetter}`));
+          activeCaseIndex.value = quote.cases.length - 1;
+        }
+        function removeCase() {
+          if (quote.cases.length <= 1) return;
+          if (!confirm(`「${activeCase.value.name}」を削除しますか？`)) return;
+          quote.cases.splice(activeCaseIndex.value, 1);
+          activeCaseIndex.value = Math.max(0, activeCaseIndex.value - 1);
+        }
+        function renameCase() {
+          const next = prompt("案名を入力", activeCase.value.name);
+          if (next && next.trim()) activeCase.value.name = next.trim();
+        }
+
+        async function exportExcel() {
+          const wb = new ExcelJS.Workbook();
+          wb.creator = quote.ourCompany.staff || "見積作成ツール";
+          wb.created = new Date();
+          const usedNames = new Set();
+          for (const c of quote.cases) {
+            const sheetName = sanitizeSheetName(c.name, usedNames);
+            const ws = wb.addWorksheet(sheetName, {
+              properties: { defaultRowHeight: 18 },
+              pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+            });
+            renderCaseSheet(ws, c);
+          }
+          const buf = await wb.xlsx.writeBuffer();
+          const filename = `${quote.quoteNumber || "見積書"}_${todayISO()}.xlsx`;
+          saveAs(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
+        }
+
+        function sanitizeSheetName(name, used) {
+          let n = (name || "案").replace(/[\\/?*\[\]:]/g, "_").slice(0, 28);
+          let candidate = n, i = 2;
+          while (used.has(candidate)) candidate = `${n}_${i++}`;
+          used.add(candidate);
+          return candidate;
+        }
+
+        function renderCaseSheet(ws, c) {
+          ws.columns = [
+            { width: 6 }, { width: 28 }, { width: 10 }, { width: 8 },
+            { width: 14 }, { width: 14 }, { width: 14 }, { width: 8 },
+          ];
+          const COLS = 8;
+          let row = 1;
+
+          ws.mergeCells(row, 1, row, COLS);
+          const titleCell = ws.getCell(row, 1);
+          titleCell.value = "見 積 書";
+          titleCell.font = { name: "游ゴシック", size: 20, bold: true };
+          titleCell.alignment = { horizontal: "center", vertical: "middle" };
+          ws.getRow(row).height = 32;
+          row += 2;
+
+          ws.mergeCells(row, 1, row, 4);
+          ws.getCell(row, 1).value = `${quote.customer.company || ""}　${quote.customer.honorific || ""}`;
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: 14, bold: true };
+          ws.getCell(row, 1).border = { bottom: { style: "thin" } };
+          ws.getCell(row, 6).value = "見積番号";
+          ws.getCell(row, 7).value = quote.quoteNumber;
+          ws.getCell(row, 8).value = "担当";
+          ws.getCell(row, 8).alignment = { horizontal: "center" };
+          ws.getCell(row, 8).font = { size: 9 };
+          row++;
+          ws.mergeCells(row, 1, row, 4);
+          ws.getCell(row, 1).value = quote.customer.department || "";
+          ws.getCell(row, 6).value = "発行日";
+          ws.getCell(row, 7).value = quote.issueDate;
+          ws.getCell(row, 8).value = "";
+          ws.getCell(row, 8).border = boxBorder();
+          ws.getRow(row).height = 36;
+          row++;
+          ws.mergeCells(row, 1, row, 4);
+          ws.getCell(row, 1).value = quote.customer.contact ? `ご担当 ${quote.customer.contact} 様` : "";
+          ws.getCell(row, 6).value = "有効期限";
+          ws.getCell(row, 7).value = quote.validUntil;
+          ws.getCell(row, 8).value = "上長";
+          ws.getCell(row, 8).alignment = { horizontal: "center" };
+          ws.getCell(row, 8).font = { size: 9 };
+          row++;
+          ws.mergeCells(row, 1, row, 4);
+          ws.getCell(row, 1).value = quote.ourCompany.company || "";
+          ws.getCell(row, 1).font = { bold: true };
+          ws.getCell(row, 8).value = "";
+          ws.getCell(row, 8).border = boxBorder();
+          ws.getRow(row).height = 36;
+          row++;
+          ws.mergeCells(row, 1, row, 7);
+          ws.getCell(row, 1).value = [quote.ourCompany.department, quote.ourCompany.address].filter(Boolean).join("　");
+          row++;
+          ws.mergeCells(row, 1, row, 7);
+          ws.getCell(row, 1).value = [
+            quote.ourCompany.staff ? `担当 ${quote.ourCompany.staff}` : "",
+            quote.ourCompany.manager ? `上長 ${quote.ourCompany.manager}` : "",
+          ].filter(Boolean).join("　");
+          row += 2;
+
+          ws.mergeCells(row, 1, row, COLS);
+          ws.getCell(row, 1).value = "下記の通りお見積申し上げます。";
+          ws.getCell(row, 1).font = { size: 11 };
+          row += 2;
+
+          const grandTotal = c.lineItems.reduce((s, i) => s + calcLineTotal(i), 0);
+          for (const ft of FEE_ORDER) {
+            const items = c.lineItems.filter(i => i.feeType === ft);
+            if (items.length === 0) continue;
+            ws.mergeCells(row, 1, row, COLS);
+            const h = ws.getCell(row, 1);
+            h.value = `【${FEE_LABELS[ft]}】`;
+            h.font = { bold: true, size: 12 };
+            h.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8EDF2" } };
+            row++;
+            const hdrs = ["No.", "品目", "数量", "単位", "単価", "金額", "備考", ""];
+            hdrs.forEach((v, idx) => {
+              const cell = ws.getCell(row, idx + 1);
+              cell.value = v;
+              cell.font = { bold: true };
+              cell.alignment = { horizontal: "center" };
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF2F6" } };
+              cell.border = thinAll();
+            });
+            row++;
+            items.forEach((item, idx) => {
+              const vals = [idx + 1, item.name || "", Number(item.quantity) || 0, item.unit || "",
+                            calcUnitPrice(item), calcLineTotal(item), "", ""];
+              vals.forEach((v, i) => {
+                const cell = ws.getCell(row, i + 1);
+                cell.value = v;
+                cell.border = thinAll();
+                if (i === 0 || i === 2 || i === 3) cell.alignment = { horizontal: "center" };
+                if (i === 4 || i === 5) {
+                  cell.alignment = { horizontal: "right" };
+                  cell.numFmt = "#,##0";
+                }
+              });
+              row++;
+            });
+            const subtotal = items.reduce((s, i) => s + calcLineTotal(i), 0);
+            ws.mergeCells(row, 1, row, 4);
+            const stLabel = ws.getCell(row, 1);
+            stLabel.value = `${FEE_LABELS[ft]} 小計`;
+            stLabel.alignment = { horizontal: "right" };
+            stLabel.font = { bold: true };
+            stLabel.border = thinAll();
+            ws.getCell(row, 5).border = thinAll();
+            const stVal = ws.getCell(row, 6);
+            stVal.value = subtotal;
+            stVal.numFmt = "#,##0";
+            stVal.alignment = { horizontal: "right" };
+            stVal.font = { bold: true };
+            stVal.border = thinAll();
+            ws.getCell(row, 7).border = thinAll();
+            row += 2;
+          }
+
+          ws.mergeCells(row, 1, row, 4);
+          const gtLabel = ws.getCell(row, 1);
+          gtLabel.value = "総合計（税抜）";
+          gtLabel.alignment = { horizontal: "right" };
+          gtLabel.font = { bold: true, size: 12 };
+          gtLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF2CC" } };
+          gtLabel.border = thinAll();
+          ws.getCell(row, 5).fill = gtLabel.fill;
+          ws.getCell(row, 5).border = thinAll();
+          const gtVal = ws.getCell(row, 6);
+          gtVal.value = grandTotal;
+          gtVal.numFmt = "#,##0";
+          gtVal.alignment = { horizontal: "right" };
+          gtVal.font = { bold: true, size: 12 };
+          gtVal.fill = gtLabel.fill;
+          gtVal.border = thinAll();
+          ws.getCell(row, 7).fill = gtLabel.fill;
+          ws.getCell(row, 7).border = thinAll();
+          row += 2;
+
+          if (quote.notes) {
+            ws.mergeCells(row, 1, row, COLS);
+            ws.getCell(row, 1).value = "【備考】";
+            ws.getCell(row, 1).font = { bold: true };
+            row++;
+            const noteRows = quote.notes.split(/\r?\n/);
+            for (const line of noteRows) {
+              ws.mergeCells(row, 1, row, COLS);
+              ws.getCell(row, 1).value = line;
+              row++;
+            }
+            row++;
+          }
+
+          row += 1;
+          ws.mergeCells(row, 1, row, COLS);
+          const sumTitle = ws.getCell(row, 1);
+          sumTitle.value = "【内部用サマリ】 ※社外秘";
+          sumTitle.font = { bold: true, size: 12, color: { argb: "FFCC4444" } };
+          sumTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF6E8" } };
+          row++;
+          const sumHeaders = ["品目", "顧客出値", "企画依頼金額", "営業利益", "SE出値", "粗利", "", ""];
+          sumHeaders.forEach((v, idx) => {
+            const cell = ws.getCell(row, idx + 1);
+            cell.value = v;
+            if (v) {
+              cell.font = { bold: true };
+              cell.alignment = { horizontal: "center" };
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7E6D4" } };
+              cell.border = thinAll();
+            }
+          });
+          row++;
+          const sumFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFAF2" } };
+          for (const item of c.lineItems) {
+            const vals = [item.name || "(無題)", calcCustomerPrice(item), calcPlanRequest(item),
+                          calcSalesProfit(item), calcSEAmount(item), calcGrossProfit(item)];
+            vals.forEach((v, i) => {
+              const cell = ws.getCell(row, i + 1);
+              cell.value = v;
+              cell.border = thinAll();
+              cell.fill = sumFill;
+              if (i >= 1) {
+                cell.alignment = { horizontal: "right" };
+                cell.numFmt = "#,##0";
+              }
+            });
+            row++;
+          }
+          const tot = c.lineItems.reduce((acc, i) => {
+            acc.customer    += calcCustomerPrice(i);
+            acc.planRequest += calcPlanRequest(i);
+            acc.salesProfit += calcSalesProfit(i);
+            acc.seAmount    += calcSEAmount(i);
+            acc.grossProfit += calcGrossProfit(i);
+            return acc;
+          }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
+          const totVals = ["案合計", tot.customer, tot.planRequest, tot.salesProfit, tot.seAmount, tot.grossProfit];
+          totVals.forEach((v, i) => {
+            const cell = ws.getCell(row, i + 1);
+            cell.value = v;
+            cell.border = thinAll();
+            cell.font = { bold: true };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7E6D4" } };
+            if (i >= 1) {
+              cell.alignment = { horizontal: "right" };
+              cell.numFmt = "#,##0";
+            }
+          });
+          row++;
+          const margin = tot.customer === 0 ? "0.0" : (tot.grossProfit / tot.customer * 100).toFixed(1);
+          ws.mergeCells(row, 1, row, 5);
+          const marginLabel = ws.getCell(row, 1);
+          marginLabel.value = "粗利率（粗利 ÷ 顧客出値）";
+          marginLabel.alignment = { horizontal: "right" };
+          marginLabel.font = { bold: true };
+          marginLabel.border = thinAll();
+          const marginVal = ws.getCell(row, 6);
+          marginVal.value = `${margin} %`;
+          marginVal.alignment = { horizontal: "right" };
+          marginVal.font = { bold: true };
+          marginVal.border = thinAll();
+        }
+
+        function thinAll() {
+          const s = { style: "thin", color: { argb: "FF888888" } };
+          return { top: s, bottom: s, left: s, right: s };
+        }
+        function boxBorder() {
+          const s = { style: "medium", color: { argb: "FF333333" } };
+          return { top: s, bottom: s, left: s, right: s };
+        }
+
+        return {
+          quote, activeCaseIndex, activeCase,
+          profitOptions, profitLabel, onSourceFeeChange,
+          calcUnitPrice, calcLineTotal,
+          calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
+          caseTotalsByFee, caseGrandTotal, summaryTotals, grossMarginPct,
+          fmt, addLine, removeLine, addCase, removeCase, renameCase, exportExcel,
+        };
+      },
+    }).mount("#app");
+  </script>
+</body>
+</html>
