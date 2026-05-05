@@ -98,6 +98,7 @@
     <section class="card">
       <h2>共通情報</h2>
       <div class="form-grid">
+        <label class="full">案件名<input type="text" v-model="quote.projectName" placeholder="例: ○○ ハウスプリペイドシステム導入"></label>
         <label>見積番号<input type="text" v-model="quote.quoteNumber" placeholder="例: Q-2026-0001"></label>
         <label>発行日<input type="date" v-model="quote.issueDate"></label>
         <label>有効期限<input type="date" v-model="quote.validUntil"></label>
@@ -114,20 +115,6 @@
         </label>
         <label>部署<input type="text" v-model="quote.customer.department"></label>
         <label>担当者<input type="text" v-model="quote.customer.contact"></label>
-      </div>
-
-      <h3>自社情報</h3>
-      <div class="form-grid">
-        <label>会社名<input type="text" v-model="quote.ourCompany.company"></label>
-        <label>部署<input type="text" v-model="quote.ourCompany.department"></label>
-        <label class="full">住所<input type="text" v-model="quote.ourCompany.address"></label>
-        <label>担当<input type="text" v-model="quote.ourCompany.staff"></label>
-        <label>上長<input type="text" v-model="quote.ourCompany.manager"></label>
-      </div>
-
-      <h3>備考</h3>
-      <div class="form-grid">
-        <label class="full"><textarea v-model="quote.notes" placeholder="特記事項があれば記入"></textarea></label>
       </div>
     </section>
 
@@ -379,6 +366,21 @@
       spot: [],
     };
     const DEFAULT_UNITS = { initial: "式", monthly_base: "月", monthly_meter: "月", spot: "式" };
+    const OUR_COMPANY = {
+      company: "TOPPAN株式会社",
+      department: [
+        "情報ソリューションＢＵ",
+        "セキュアＤＸ事業部",
+        "ペイメントサービス開発・運用本部",
+        "サービス運用部",
+        "ハウスプリペイド運用Ｔ",
+      ].join("\n"),
+      address: [
+        "〒108-0074",
+        "東京都港区高輪2丁目21番2号",
+        "THE LINKPILLAR 1 SOUTH 17階",
+      ].join("\n"),
+    };
     const METER_BASE_PCT = 1.5;
     function meterText(adjustPct) {
       const total = METER_BASE_PCT + (Number(adjustPct) || 0);
@@ -415,12 +417,11 @@
     createApp({
       setup() {
         const quote = reactive({
+          projectName: "",
           quoteNumber: "",
           issueDate: todayISO(),
           validUntil: "",
           customer: { company: "", department: "", contact: "", honorific: "御中" },
-          ourCompany: { company: "", department: "", address: "", staff: "", manager: "" },
-          notes: "",
           cases: [newCase("案A")],
         });
         const activeCaseIndex = ref(0);
@@ -610,7 +611,7 @@
         }
         async function exportExcel() {
           const wb = new ExcelJS.Workbook();
-          wb.creator = quote.ourCompany.staff || "見積作成ツール";
+          wb.creator = OUR_COMPANY.company;
           wb.created = new Date();
           // 印枠画像（担当・上長 共通）
           const STAMP_PX = 100;
@@ -626,7 +627,7 @@
             renderCaseSheet(ws, c, stampImageId, STAMP_PX);
           }
           const buf = await wb.xlsx.writeBuffer();
-          const filename = `${quote.quoteNumber || "見積書"}_${todayISO()}.xlsx`;
+          const filename = `${quote.projectName || quote.quoteNumber || "見積書"}_${todayISO()}.xlsx`;
           saveAs(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
         }
 
@@ -654,6 +655,16 @@
           ws.getRow(row).height = 32;
           row += 2;
 
+          // 案件名
+          ws.mergeCells(row, 1, row, COLS);
+          const projCell = ws.getCell(row, 1);
+          projCell.value = quote.projectName ? `件名: ${quote.projectName}` : "";
+          projCell.font = { name: "游ゴシック", size: 14, bold: true };
+          projCell.alignment = { horizontal: "center" };
+          ws.getRow(row).height = 22;
+          row += 2;
+
+          // 顧客情報（左） + 見積メタデータ（右）
           ws.mergeCells(row, 1, row, 4);
           ws.getCell(row, 1).value = `${quote.customer.company || ""}　${quote.customer.honorific || ""}`;
           ws.getCell(row, 1).font = { name: "游ゴシック", size: 14, bold: true };
@@ -674,10 +685,7 @@
           ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.validUntil;
           row++;
-          // 自社会社名 + 印枠ラベル（担当・上長 横並び）
-          ws.mergeCells(row, 1, row, 4);
-          ws.getCell(row, 1).value = quote.ourCompany.company || "";
-          ws.getCell(row, 1).font = { bold: true };
+          // 担当・上長 印枠ラベル（cols 7, 8）
           ws.getCell(row, 7).value = "担当";
           ws.getCell(row, 7).alignment = { horizontal: "center" };
           ws.getCell(row, 7).font = { size: 9 };
@@ -685,11 +693,12 @@
           ws.getCell(row, 8).alignment = { horizontal: "center" };
           ws.getCell(row, 8).font = { size: 9 };
           row++;
-          // 自社部署+住所 + 印枠ボックス（画像で同一サイズ）
+          // 自社会社名（左）+ 印枠ボックス画像（右、cols 7+8 の同一行）
           ws.mergeCells(row, 1, row, 6);
-          ws.getCell(row, 1).value = [quote.ourCompany.department, quote.ourCompany.address].filter(Boolean).join("　");
-          ws.getRow(row).height = Math.ceil(stampPx / 1.333);  // pxをptに換算
-          // 図形挿入で同一面積の印枠を配置
+          ws.getCell(row, 1).value = OUR_COMPANY.company;
+          ws.getCell(row, 1).font = { bold: true, size: 12 };
+          ws.getCell(row, 1).alignment = { vertical: "top" };
+          ws.getRow(row).height = Math.ceil(stampPx / 1.333);
           ws.addImage(stampImageId, {
             tl: { col: 6, row: row - 1 },
             ext: { width: stampPx, height: stampPx },
@@ -699,11 +708,17 @@
             ext: { width: stampPx, height: stampPx },
           });
           row++;
+          // 自社部署（複数行）
           ws.mergeCells(row, 1, row, 8);
-          ws.getCell(row, 1).value = [
-            quote.ourCompany.staff ? `担当 ${quote.ourCompany.staff}` : "",
-            quote.ourCompany.manager ? `上長 ${quote.ourCompany.manager}` : "",
-          ].filter(Boolean).join("　");
+          ws.getCell(row, 1).value = OUR_COMPANY.department;
+          ws.getCell(row, 1).alignment = { wrapText: true, vertical: "top" };
+          ws.getRow(row).height = OUR_COMPANY.department.split("\n").length * 15 + 4;
+          row++;
+          // 自社住所（複数行）
+          ws.mergeCells(row, 1, row, 8);
+          ws.getCell(row, 1).value = OUR_COMPANY.address;
+          ws.getCell(row, 1).alignment = { wrapText: true, vertical: "top" };
+          ws.getRow(row).height = OUR_COMPANY.address.split("\n").length * 15 + 4;
           row += 2;
 
           ws.mergeCells(row, 1, row, COLS);
@@ -796,20 +811,6 @@
           ws.getCell(row, 7).fill = gtLabel.fill;
           ws.getCell(row, 7).border = thinAll();
           row += 2;
-
-          if (quote.notes) {
-            ws.mergeCells(row, 1, row, COLS);
-            ws.getCell(row, 1).value = "【備考】";
-            ws.getCell(row, 1).font = { bold: true };
-            row++;
-            const noteRows = quote.notes.split(/\r?\n/);
-            for (const line of noteRows) {
-              ws.mergeCells(row, 1, row, COLS);
-              ws.getCell(row, 1).value = line;
-              row++;
-            }
-            row++;
-          }
 
           row += 1;
           ws.mergeCells(row, 1, row, COLS);
