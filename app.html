@@ -49,6 +49,13 @@
     table.lines td.num { text-align: right; font-variant-numeric: tabular-nums; }
     table.lines td.calc { background: #f7faff; color: #2c5d8f; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
     table.lines td.fixed-mode { color: #888; font-size: 0.8rem; text-align: center; }
+    .price-control { display: flex; flex-direction: column; gap: 2px; }
+    .price-control .bumps { display: flex; gap: 2px; justify-content: flex-end; }
+    .price-control .bumps button {
+      font-size: 0.7rem; padding: 1px 5px; line-height: 1.4;
+      background: #fff; color: #2c5d8f; border: 1px solid #2c5d8f;
+    }
+    .price-control .bumps button:disabled { opacity: 0.3; cursor: not-allowed; }
     .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 10px; }
     .totals .tile { background: #eef2f6; padding: 8px 12px; border-radius: 4px; }
     .totals .tile .label { font-size: 0.75rem; color: #555; }
@@ -169,11 +176,21 @@
               </td>
               <td class="calc">{{ fmt(calcLineTotal(item)) }}</td>
               <td :class="{ calc: calcLineTotal(item) % 1000 === 0 }">
-                <input type="number" step="1000" min="0"
-                       :value="effectiveCustomerPrice(item)"
-                       :disabled="calcLineTotal(item) % 1000 === 0"
-                       @change="setCustomerPrice(item, $event.target.value)"
-                       class="num">
+                <div class="price-control">
+                  <input type="number" step="1000" min="0"
+                         :value="effectiveCustomerPrice(item)"
+                         :disabled="calcLineTotal(item) % 1000 === 0"
+                         @change="setCustomerPrice(item, $event.target.value)"
+                         class="num">
+                  <div class="bumps">
+                    <button :disabled="calcLineTotal(item) % 1000 === 0"
+                            @click="bumpCustomerPrice(item, 1000)" title="+1,000">+1k</button>
+                    <button :disabled="calcLineTotal(item) % 1000 === 0"
+                            @click="bumpCustomerPrice(item, 2000)" title="+2,000">+2k</button>
+                    <button :disabled="calcLineTotal(item) % 1000 === 0"
+                            @click="bumpCustomerPrice(item, 3000)" title="+3,000">+3k</button>
+                  </div>
+                </div>
               </td>
               <td><input type="text" v-model="item.note"></td>
               <td><button class="danger small" @click="removeLine(i)">削除</button></td>
@@ -330,6 +347,9 @@
         function setCustomerPrice(item, val) {
           const n = Number(val);
           item.customerPrice = Number.isFinite(n) ? n : null;
+        }
+        function bumpCustomerPrice(item, amount) {
+          item.customerPrice = effectiveCustomerPrice(item) + amount;
         }
         function calcCustomerPrice(item) { return effectiveCustomerPrice(item); }
         function calcPlanRequest(item) {
@@ -702,7 +722,7 @@
           quote, activeCaseIndex, activeCase,
           feeOrder: FEE_ORDER,
           profitOptions, profitLabel, onSourceFeeChange,
-          calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice,
+          calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice, bumpCustomerPrice,
           calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
           caseTotalsByFee, caseGrandTotal,
           summaryTotals, summaryItemsByFee, summarySubtotals, feeLabel, grossMarginPct,
