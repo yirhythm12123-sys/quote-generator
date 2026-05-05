@@ -179,11 +179,12 @@
                 <template v-if="item.feeType === 'monthly_meter'">
                   <input type="text" v-model="item.priceText" placeholder="例: 売上の3%">
                   <select v-if="item.preset === '月の従量料金'"
-                          v-model.number="item.meterAdjustPct"
-                          @change="onMeterAdjustChange(item)" class="bump">
+                          :value="item.meterAdjustPct"
+                          @change="onMeterAdjustSelect(item, $event)" class="bump">
                     <option v-for="pct in meterAdjustOptions" :key="pct" :value="pct">
                       {{ (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' }}
                     </option>
+                    <option value="reset">元に戻す</option>
                   </select>
                 </template>
                 <input v-else type="number" min="0" step="1"
@@ -453,6 +454,11 @@
           item.customerPrice = null;
         }
         function onMeterAdjustChange(item) {
+          item.priceText = meterText(item.meterAdjustPct);
+        }
+        function onMeterAdjustSelect(item, e) {
+          const v = e.target.value;
+          item.meterAdjustPct = (v === "reset") ? 0 : Number(v);
           item.priceText = meterText(item.meterAdjustPct);
         }
 
@@ -889,7 +895,7 @@
           feeOrder: FEE_GROUPS,
           isTextItem,
           profitOptions, profitLabel, onSourceFeeChange,
-          presetsFor, onPresetChange, onMeterAdjustChange, meterAdjustOptions,
+          presetsFor, onPresetChange, onMeterAdjustChange, onMeterAdjustSelect, meterAdjustOptions,
           calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice, bumpCustomerPrice, onBumpSelect,
           bumpAmounts: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000],
           calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
