@@ -191,6 +191,7 @@
                 </template>
                 <input v-else type="text" inputmode="numeric"
                        v-model="item.unitOfferPrice"
+                       @change="item.unitOfferPrice = fmt(asNum(item.unitOfferPrice))"
                        @blur="item.unitOfferPrice = fmt(asNum(item.unitOfferPrice))"
                        @focus="item.unitOfferPrice = String(asNum(item.unitOfferPrice))"
                        class="num">
@@ -589,10 +590,32 @@
           if (next && next.trim()) activeCase.value.name = next.trim();
         }
 
+        function makeStampBoxBuffer(sizePx) {
+          return new Promise((resolve, reject) => {
+            const canvas = document.createElement("canvas");
+            canvas.width = sizePx;
+            canvas.height = sizePx;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, sizePx, sizePx);
+            ctx.strokeStyle = "#333333";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(1, 1, sizePx - 2, sizePx - 2);
+            canvas.toBlob(async (blob) => {
+              if (!blob) return reject(new Error("toBlob failed"));
+              try { resolve(await blob.arrayBuffer()); }
+              catch (e) { reject(e); }
+            }, "image/png");
+          });
+        }
         async function exportExcel() {
           const wb = new ExcelJS.Workbook();
           wb.creator = quote.ourCompany.staff || "見積作成ツール";
           wb.created = new Date();
+          // 印枠画像（担当・上長 共通）
+          const STAMP_PX = 100;
+          const stampBuf = await makeStampBoxBuffer(STAMP_PX);
+          const stampImageId = wb.addImage({ buffer: stampBuf, extension: "png" });
           const usedNames = new Set();
           for (const c of quote.cases) {
             const sheetName = sanitizeSheetName(c.name, usedNames);
@@ -600,7 +623,7 @@
               properties: { defaultRowHeight: 18 },
               pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
             });
-            renderCaseSheet(ws, c);
+            renderCaseSheet(ws, c, stampImageId, STAMP_PX);
           }
           const buf = await wb.xlsx.writeBuffer();
           const filename = `${quote.quoteNumber || "見積書"}_${todayISO()}.xlsx`;
@@ -615,10 +638,10 @@
           return candidate;
         }
 
-        function renderCaseSheet(ws, c) {
+        function renderCaseSheet(ws, c, stampImageId, stampPx) {
           ws.columns = [
             { width: 6 }, { width: 28 }, { width: 10 }, { width: 8 },
-            { width: 14 }, { width: 14 }, { width: 14 }, { width: 8 },
+            { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 },
           ];
           const COLS = 8;
           let row = 1;
@@ -662,12 +685,19 @@
           ws.getCell(row, 8).alignment = { horizontal: "center" };
           ws.getCell(row, 8).font = { size: 9 };
           row++;
-          // 自社部署+住所 + 印枠ボックス（担当・上長 横並び）
+          // 自社部署+住所 + 印枠ボックス（画像で同一サイズ）
           ws.mergeCells(row, 1, row, 6);
           ws.getCell(row, 1).value = [quote.ourCompany.department, quote.ourCompany.address].filter(Boolean).join("　");
-          ws.getCell(row, 7).border = boxBorder();
-          ws.getCell(row, 8).border = boxBorder();
-          ws.getRow(row).height = 36;
+          ws.getRow(row).height = Math.ceil(stampPx / 1.333);  // pxをptに換算
+          // 図形挿入で同一面積の印枠を配置
+          ws.addImage(stampImageId, {
+            tl: { col: 6, row: row - 1 },
+            ext: { width: stampPx, height: stampPx },
+          });
+          ws.addImage(stampImageId, {
+            tl: { col: 7, row: row - 1 },
+            ext: { width: stampPx, height: stampPx },
+          });
           row++;
           ws.mergeCells(row, 1, row, 8);
           ws.getCell(row, 1).value = [
