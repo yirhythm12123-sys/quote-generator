@@ -50,12 +50,11 @@
     table.lines td.calc { background: #f7faff; color: #2c5d8f; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
     table.lines td.fixed-mode { color: #888; font-size: 0.8rem; text-align: center; }
     .price-control { display: flex; flex-direction: column; gap: 2px; }
-    .price-control .bumps { display: flex; gap: 2px; justify-content: flex-end; }
-    .price-control .bumps button {
-      font-size: 0.7rem; padding: 1px 5px; line-height: 1.4;
-      background: #fff; color: #2c5d8f; border: 1px solid #2c5d8f;
+    .price-control select.bump {
+      font-size: 0.75rem; padding: 1px 4px;
+      border: 1px solid #2c5d8f; color: #2c5d8f; background: #fff;
     }
-    .price-control .bumps button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .price-control select.bump:disabled { opacity: 0.3; cursor: not-allowed; }
     .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 10px; }
     .totals .tile { background: #eef2f6; padding: 8px 12px; border-radius: 4px; }
     .totals .tile .label { font-size: 0.75rem; color: #555; }
@@ -182,14 +181,12 @@
                          :disabled="calcLineTotal(item) % 1000 === 0"
                          @change="setCustomerPrice(item, $event.target.value)"
                          class="num">
-                  <div class="bumps">
-                    <button :disabled="calcLineTotal(item) % 1000 === 0"
-                            @click="bumpCustomerPrice(item, 1000)" title="+1,000">+1k</button>
-                    <button :disabled="calcLineTotal(item) % 1000 === 0"
-                            @click="bumpCustomerPrice(item, 2000)" title="+2,000">+2k</button>
-                    <button :disabled="calcLineTotal(item) % 1000 === 0"
-                            @click="bumpCustomerPrice(item, 3000)" title="+3,000">+3k</button>
-                  </div>
+                  <select class="bump"
+                          :disabled="calcLineTotal(item) % 1000 === 0"
+                          @change="onBumpSelect(item, $event)">
+                    <option value="0">加算...</option>
+                    <option v-for="n in bumpAmounts" :key="n" :value="n">+{{ n.toLocaleString() }}</option>
+                  </select>
                 </div>
               </td>
               <td><input type="text" v-model="item.note"></td>
@@ -350,6 +347,11 @@
         }
         function bumpCustomerPrice(item, amount) {
           item.customerPrice = effectiveCustomerPrice(item) + amount;
+        }
+        function onBumpSelect(item, e) {
+          const amount = Number(e.target.value);
+          if (amount > 0) bumpCustomerPrice(item, amount);
+          e.target.value = "0";
         }
         function calcCustomerPrice(item) { return effectiveCustomerPrice(item); }
         function calcPlanRequest(item) {
@@ -722,7 +724,8 @@
           quote, activeCaseIndex, activeCase,
           feeOrder: FEE_ORDER,
           profitOptions, profitLabel, onSourceFeeChange,
-          calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice, bumpCustomerPrice,
+          calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice, bumpCustomerPrice, onBumpSelect,
+          bumpAmounts: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000],
           calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
           caseTotalsByFee, caseGrandTotal,
           summaryTotals, summaryItemsByFee, summarySubtotals, feeLabel, grossMarginPct,
