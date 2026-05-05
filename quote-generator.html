@@ -370,6 +370,7 @@
       ],
       spot: [],
     };
+    const DEFAULT_UNITS = { initial: "式", monthly_base: "月", monthly_meter: "月", spot: "式" };
     const METER_BASE_PCT = 1.5;
     function meterText(adjustPct) {
       const total = METER_BASE_PCT + (Number(adjustPct) || 0);
@@ -426,6 +427,8 @@
             item.priceText = "";
             item.meterAdjustPct = 0;
           }
+          // 単位は費用区分に応じて自動更新
+          item.unit = DEFAULT_UNITS[item.feeType] || "式";
         }
         function presetsFor(feeType) { return PRESETS[feeType] || []; }
         function onPresetChange(item) {
