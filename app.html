@@ -186,6 +186,7 @@
                           @change="onBumpSelect(item, $event)">
                     <option value="0">加算...</option>
                     <option v-for="n in bumpAmounts" :key="n" :value="n">+{{ n.toLocaleString() }}</option>
+                    <option value="reset">元に戻す</option>
                   </select>
                 </div>
               </td>
@@ -349,8 +350,13 @@
           item.customerPrice = effectiveCustomerPrice(item) + amount;
         }
         function onBumpSelect(item, e) {
-          const amount = Number(e.target.value);
-          if (amount > 0) bumpCustomerPrice(item, amount);
+          const v = e.target.value;
+          if (v === "reset") {
+            item.customerPrice = null;
+          } else {
+            const amount = Number(v);
+            if (amount > 0) bumpCustomerPrice(item, amount);
+          }
           e.target.value = "0";
         }
         function calcCustomerPrice(item) { return effectiveCustomerPrice(item); }
