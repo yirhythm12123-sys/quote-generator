@@ -153,7 +153,12 @@
               <td><input type="text" v-model="item.name"></td>
               <td><input type="number" min="0" step="1" v-model.number="item.quantity" class="num"></td>
               <td><input type="text" v-model="item.unit" style="width:60px"></td>
-              <td><input type="number" min="0" step="1" v-model.number="item.unitOfferPrice" class="num"></td>
+              <td>
+                <input v-if="item.feeType === 'monthly_meter'" type="text"
+                       v-model="item.priceText" placeholder="例: 売上の3%">
+                <input v-else type="number" min="0" step="1"
+                       v-model.number="item.unitOfferPrice" class="num">
+              </td>
               <td>
                 <select v-model="item.source" @change="onSourceFeeChange(item)">
                   <option value="部">部</option>
@@ -163,7 +168,8 @@
               <td>
                 <select v-model="item.feeType" @change="onSourceFeeChange(item)">
                   <option value="initial">初期</option>
-                  <option value="monthly">月額</option>
+                  <option value="monthly_base">月額基本</option>
+                  <option value="monthly_meter">月額従量</option>
                   <option value="spot">都度</option>
                 </select>
               </td>
@@ -173,9 +179,13 @@
                 </select>
                 <span v-else class="fixed-mode">{{ profitLabel(profitOptions(item)[0]) }}</span>
               </td>
-              <td class="calc">{{ fmt(calcLineTotal(item)) }}</td>
-              <td :class="{ calc: calcLineTotal(item) % 1000 === 0 }">
-                <div class="price-control">
+              <td class="calc">
+                <span v-if="isTextItem(item)">{{ item.priceText }}</span>
+                <span v-else>{{ fmt(calcLineTotal(item)) }}</span>
+              </td>
+              <td :class="{ calc: !isTextItem(item) && calcLineTotal(item) % 1000 === 0 }">
+                <div v-if="isTextItem(item)" style="text-align:center; color:#888;">{{ item.priceText }}</div>
+                <div v-else class="price-control">
                   <input type="number" step="1000" min="0"
                          :value="effectiveCustomerPrice(item)"
                          :disabled="calcLineTotal(item) % 1000 === 0"
@@ -232,11 +242,11 @@
                   <tbody>
                     <tr v-for="(item, i) in summaryItemsByFee(ft)" :key="i">
                       <td>{{ item.name || '(無題)' }}</td>
-                      <td class="num">{{ fmt(calcCustomerPrice(item)) }}</td>
-                      <td class="num">{{ fmt(calcPlanRequest(item)) }}</td>
-                      <td class="num">{{ fmt(calcSalesProfit(item)) }}</td>
-                      <td class="num">{{ fmt(calcSEAmount(item)) }}</td>
-                      <td class="num">{{ fmt(calcGrossProfit(item)) }}</td>
+                      <td class="num">{{ isTextItem(item) ? item.priceText : fmt(calcCustomerPrice(item)) }}</td>
+                      <td class="num">{{ isTextItem(item) ? '-' : fmt(calcPlanRequest(item)) }}</td>
+                      <td class="num">{{ isTextItem(item) ? '-' : fmt(calcSalesProfit(item)) }}</td>
+                      <td class="num">{{ isTextItem(item) ? '-' : fmt(calcSEAmount(item)) }}</td>
+                      <td class="num">{{ isTextItem(item) ? '-' : fmt(calcGrossProfit(item)) }}</td>
                     </tr>
                     <tr class="total">
                       <td>{{ feeLabel(ft) }} 小計</td>
@@ -275,8 +285,18 @@
 
   <script>
     const PROFIT_MODE_OPTIONS = {
-      "部": { initial: ["sales", "none"], monthly: ["sales", "none"], spot: ["sales", "none"] },
-      "SE": { initial: ["both"],          monthly: ["both", "dept", "none"], spot: ["both"] },
+      "部": {
+        initial:       ["sales", "none"],
+        monthly_base:  ["sales", "none"],
+        monthly_meter: ["sales", "none"],
+        spot:          ["sales", "none"],
+      },
+      "SE": {
+        initial:       ["both"],
+        monthly_base:  ["both", "dept", "none"],
+        monthly_meter: ["both", "dept", "none"],
+        spot:          ["both"],
+      },
     };
     const PROFIT_LABELS = {
       both:  "部+営業 (/0.8/0.9)",
@@ -284,8 +304,19 @@
       dept:  "部のみ (/0.8)",
       none:  "固定(営業利益乗せない)",
     };
-    const FEE_LABELS = { initial: "初期費用", monthly: "月額費用", spot: "都度費用" };
-    const FEE_ORDER = ["initial", "monthly", "spot"];
+    const FEE_LABELS = {
+      initial:       "初期費用",
+      monthly_base:  "月額基本料金",
+      monthly_meter: "月額従量料金",
+      spot:          "都度費用",
+    };
+    const FEE_ORDER = ["initial", "monthly_base", "monthly_meter", "spot"];
+    const FEE_GROUP_LABELS = { initial: "初期費用", monthly: "月額費用", spot: "都度費用" };
+    const FEE_GROUPS = ["initial", "monthly", "spot"];
+    function feeGroupOf(ft) {
+      if (ft === "monthly_base" || ft === "monthly_meter") return "monthly";
+      return ft;
+    }
 
     function todayISO() {
       const d = new Date();
@@ -296,7 +327,10 @@
     function newLineItem() {
       return { name: "", source: "部", feeType: "initial", profitMode: "sales",
                quantity: 1, unit: "式", unitOfferPrice: 0,
-               customerPrice: null, note: "" };
+               priceText: "", customerPrice: null, note: "" };
+    }
+    function isTextItem(item) {
+      return item.feeType === "monthly_meter" && (item.priceText || "").trim() !== "";
     }
     function newCase(name) { return { name, lineItems: [newLineItem()] }; }
 
@@ -324,6 +358,7 @@
         }
 
         function calcUnitPrice(item) {
+          if (isTextItem(item)) return 0;
           const p = Number(item.unitOfferPrice) || 0;
           switch (item.profitMode) {
             case "both":  return Math.round(p / 0.8 / 0.9);
@@ -333,7 +368,10 @@
             default:      return p;
           }
         }
-        function calcLineTotal(item) { return calcUnitPrice(item) * (Number(item.quantity) || 0); }
+        function calcLineTotal(item) {
+          if (isTextItem(item)) return 0;
+          return calcUnitPrice(item) * (Number(item.quantity) || 0);
+        }
         function effectiveCustomerPrice(item) {
           const auto = calcLineTotal(item);
           if (auto % 1000 === 0) return auto;
@@ -367,13 +405,13 @@
         }
         function calcSalesProfit(item) { return calcCustomerPrice(item) - calcPlanRequest(item); }
         function calcSEAmount(item) {
-          if (item.source !== "SE") return 0;
+          if (item.source !== "SE" || isTextItem(item)) return 0;
           return (Number(item.unitOfferPrice) || 0) * (Number(item.quantity) || 0);
         }
         function calcGrossProfit(item) { return calcPlanRequest(item) - calcSEAmount(item); }
 
-        function caseTotalsByFee(feeType) {
-          return activeCase.value.lineItems.filter(i => i.feeType === feeType)
+        function caseTotalsByFee(group) {
+          return activeCase.value.lineItems.filter(i => feeGroupOf(i.feeType) === group)
             .reduce((s, i) => s + effectiveCustomerPrice(i), 0);
         }
         function caseGrandTotal() {
@@ -389,11 +427,11 @@
             return acc;
           }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
         }
-        function summaryItemsByFee(ft, c = activeCase.value) {
-          return c.lineItems.filter(i => i.feeType === ft);
+        function summaryItemsByFee(group, c = activeCase.value) {
+          return c.lineItems.filter(i => feeGroupOf(i.feeType) === group);
         }
-        function summarySubtotals(ft, c = activeCase.value) {
-          return summaryItemsByFee(ft, c).reduce((acc, i) => {
+        function summarySubtotals(group, c = activeCase.value) {
+          return summaryItemsByFee(group, c).reduce((acc, i) => {
             acc.customer    += calcCustomerPrice(i);
             acc.planRequest += calcPlanRequest(i);
             acc.salesProfit += calcSalesProfit(i);
@@ -402,7 +440,7 @@
             return acc;
           }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
         }
-        function feeLabel(ft) { return FEE_LABELS[ft]; }
+        function feeLabel(group) { return FEE_GROUP_LABELS[group] || FEE_LABELS[group] || group; }
         function grossMarginPct(c = activeCase.value) {
           const t = summaryTotals(c);
           if (t.customer === 0) return "0.0";
@@ -525,12 +563,12 @@
           row += 2;
 
           const grandTotal = c.lineItems.reduce((s, i) => s + effectiveCustomerPrice(i), 0);
-          for (const ft of FEE_ORDER) {
-            const items = c.lineItems.filter(i => i.feeType === ft);
+          for (const group of FEE_GROUPS) {
+            const items = c.lineItems.filter(i => feeGroupOf(i.feeType) === group);
             if (items.length === 0) continue;
             ws.mergeCells(row, 1, row, COLS);
             const h = ws.getCell(row, 1);
-            h.value = `【${FEE_LABELS[ft]}】`;
+            h.value = `【${FEE_GROUP_LABELS[group]}】`;
             h.font = { bold: true, size: 12 };
             h.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8EDF2" } };
             row++;
@@ -545,16 +583,29 @@
             });
             row++;
             items.forEach((item, idx) => {
-              const vals = [idx + 1, item.name || "", Number(item.quantity) || 0, item.unit || "",
-                            calcUnitPrice(item), effectiveCustomerPrice(item), item.note || "", ""];
+              const txt = isTextItem(item);
+              const nameDisp = item.name + (item.feeType === "monthly_meter" && item.name ? "（従量）" : "");
+              const vals = [
+                idx + 1,
+                nameDisp || "",
+                txt ? "" : (Number(item.quantity) || 0),
+                txt ? "" : (item.unit || ""),
+                txt ? item.priceText : calcUnitPrice(item),
+                txt ? item.priceText : effectiveCustomerPrice(item),
+                item.note || "",
+                "",
+              ];
               vals.forEach((v, i) => {
                 const cell = ws.getCell(row, i + 1);
                 cell.value = v;
                 cell.border = thinAll();
                 if (i === 0 || i === 2 || i === 3) cell.alignment = { horizontal: "center" };
-                if (i === 4 || i === 5) {
+                if ((i === 4 || i === 5) && !txt) {
                   cell.alignment = { horizontal: "right" };
                   cell.numFmt = "#,##0";
+                }
+                if ((i === 4 || i === 5) && txt) {
+                  cell.alignment = { horizontal: "right" };
                 }
               });
               row++;
@@ -562,7 +613,7 @@
             const subtotal = items.reduce((s, i) => s + effectiveCustomerPrice(i), 0);
             ws.mergeCells(row, 1, row, 4);
             const stLabel = ws.getCell(row, 1);
-            stLabel.value = `${FEE_LABELS[ft]} 小計`;
+            stLabel.value = `${FEE_GROUP_LABELS[group]} 小計`;
             stLabel.alignment = { horizontal: "right" };
             stLabel.font = { bold: true };
             stLabel.border = thinAll();
@@ -623,14 +674,14 @@
           const subtotalFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7E6D4" } };
           const grand = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 };
 
-          for (const ft of FEE_ORDER) {
-            const items = c.lineItems.filter(i => i.feeType === ft);
+          for (const group of FEE_GROUPS) {
+            const items = c.lineItems.filter(i => feeGroupOf(i.feeType) === group);
             if (items.length === 0) continue;
 
             // 区分見出し
             ws.mergeCells(row, 1, row, COLS);
             const sectionLabel = ws.getCell(row, 1);
-            sectionLabel.value = `【${FEE_LABELS[ft]}】`;
+            sectionLabel.value = `【${FEE_GROUP_LABELS[group]}】`;
             sectionLabel.font = { bold: true, color: { argb: "FFCC4444" } };
             sectionLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF6E8" } };
             row++;
@@ -652,14 +703,20 @@
             // 明細
             const sub = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 };
             for (const item of items) {
+              const txt = isTextItem(item);
               const cp = calcCustomerPrice(item);
               const pr = calcPlanRequest(item);
               const sp = calcSalesProfit(item);
               const se = calcSEAmount(item);
               const gp = calcGrossProfit(item);
-              sub.customer += cp; sub.planRequest += pr; sub.salesProfit += sp; sub.seAmount += se; sub.grossProfit += gp;
-              grand.customer += cp; grand.planRequest += pr; grand.salesProfit += sp; grand.seAmount += se; grand.grossProfit += gp;
-              const vals = [item.name || "(無題)", cp, pr, sp, se, gp];
+              if (!txt) {
+                sub.customer += cp; sub.planRequest += pr; sub.salesProfit += sp; sub.seAmount += se; sub.grossProfit += gp;
+                grand.customer += cp; grand.planRequest += pr; grand.salesProfit += sp; grand.seAmount += se; grand.grossProfit += gp;
+              }
+              const nameDisp = (item.name || "(無題)") + (item.feeType === "monthly_meter" ? "（従量）" : "");
+              const vals = txt
+                ? [nameDisp, item.priceText, "-", "-", "-", "-"]
+                : [nameDisp, cp, pr, sp, se, gp];
               vals.forEach((v, i) => {
                 const cell = ws.getCell(row, i + 1);
                 cell.value = v;
@@ -667,14 +724,14 @@
                 cell.fill = sumFill;
                 if (i >= 1) {
                   cell.alignment = { horizontal: "right" };
-                  cell.numFmt = "#,##0";
+                  if (!txt) cell.numFmt = "#,##0";
                 }
               });
               row++;
             }
 
             // 区分小計
-            const subVals = [`${FEE_LABELS[ft]} 小計`, sub.customer, sub.planRequest, sub.salesProfit, sub.seAmount, sub.grossProfit];
+            const subVals = [`${FEE_GROUP_LABELS[group]} 小計`, sub.customer, sub.planRequest, sub.salesProfit, sub.seAmount, sub.grossProfit];
             subVals.forEach((v, i) => {
               const cell = ws.getCell(row, i + 1);
               cell.value = v;
@@ -728,7 +785,8 @@
 
         return {
           quote, activeCaseIndex, activeCase,
-          feeOrder: FEE_ORDER,
+          feeOrder: FEE_GROUPS,
+          isTextItem,
           profitOptions, profitLabel, onSourceFeeChange,
           calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice, bumpCustomerPrice, onBumpSelect,
           bumpAmounts: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000],
