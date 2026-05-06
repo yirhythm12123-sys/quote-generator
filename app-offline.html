@@ -1082,7 +1082,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           // (col 3/4 はサマリの企画依頼金額・営業利益にも使われる)
           ws.columns = [
             { width: 6 }, { width: 28 }, { width: 14 }, { width: 14 }, { width: 14 },
-            { width: 14 }, { width: 16 }, { width: 14 },
+            { width: 14 }, { width: 26 }, { width: 14 },
           ];
           const COLS = 8;
           let row = 1;
@@ -1255,7 +1255,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 cell.border = thinAll();
                 const align = { vertical: "middle" };
                 if (i === 0 || i === 2 || i === 3) align.horizontal = "center";
-                else if (i === 1 || i === 6) { align.horizontal = "left"; align.wrapText = true; }
+                else if (i === 1) { align.horizontal = "left"; align.wrapText = true; }
+                else if (i === 6) {
+                  align.horizontal = "left"; align.wrapText = true; align.vertical = "top";
+                  cell.font = { size: 7 };  // 備考は 7pt で表示
+                }
                 else if (i === 4 || i === 5) {
                   align.horizontal = "right";
                   if (!txt) cell.numFmt = "#,##0";
@@ -1263,8 +1267,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 }
                 cell.alignment = align;
               });
-              // 品目や備考が長い場合に備えてやや高めの行高を確保
-              ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, 22);
+              // 備考の行数に応じて行高を確保 (7pt × 行数 + 余白)
+              const noteLines = (item.note || "").split("\n").length;
+              const minHeightForNote = Math.max(22, noteLines * 10 + 4);
+              ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, minHeightForNote);
               row++;
             });
             const subtotal = items.reduce((s, i) => s + effectiveCustomerPrice(i), 0);
