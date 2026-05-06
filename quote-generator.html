@@ -812,7 +812,11 @@
           row++;
 
           // 所属（label F + 会社名/部署を G-H に複数行）
+          // 左側 A:E は導入メッセージを下寄せで配置
           ws.mergeCells(row, 1, row, 5);
+          ws.getCell(row, 1).value = "担当営業向け御見積は下記の通りです。ご査収ください。";
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: 13, bold: true };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "bottom", wrapText: true };
           ws.getCell(row, 6).value = "所属";
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
@@ -871,11 +875,6 @@
               cell.border = b;
             }
           }
-
-          ws.mergeCells(row, 1, row, COLS);
-          ws.getCell(row, 1).value = "下記の通りお見積申し上げます。";
-          ws.getCell(row, 1).font = { size: 11 };
-          row += 2;
 
           const grandTotal = c.lineItems.reduce((s, i) => s + effectiveCustomerPrice(i), 0);
           for (const group of FEE_GROUPS) {
