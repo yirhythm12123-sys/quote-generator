@@ -44,7 +44,8 @@
   </div>
 
   <script>
-    const SRC_URL = "https://rawcdn.githack.com/yirhythm12123-sys/quote-generator/main/app-offline.html";
+    // raw.githack の CDN キャッシュを避けるため GitHub 直 URL から取得
+    const SRC_URL = "https://raw.githubusercontent.com/yirhythm12123-sys/quote-generator/main/app-offline.html?_=" + Date.now();
     const FILENAME = "見積書ツール.html";
     const btn = document.getElementById("dl");
     const status = document.getElementById("status");
