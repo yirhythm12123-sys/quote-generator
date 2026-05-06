@@ -738,10 +738,19 @@
           ws.getRow(row).height = 32;
           row += 2;
 
-          // 顧客社名 + 担当営業氏名（左大、罫線下） + 見積番号（右）
-          const _cn = quote.customer.company || "";
-          const _sn = quote.salesContact || "";
-          const customerLine = (_cn || _sn) ? `【${_cn}】${_sn}${_sn ? "様" : ""}` : "";
+          // 顧客社名 + 担当営業（宛名行・罫線下） + 見積番号（右）
+          const _ccode = quote.customer.companyCode || "";
+          const _cname = quote.customer.company || "";
+          const _customRadio = document.getElementById("sc-custom-radio");
+          const _isCustom = _customRadio && _customRadio.checked;
+          const _salesCo = (_isCustom ? quote.salesCompanyOther : quote.salesCompany) || "";
+          const _salesDept = quote.salesDepartment || "";
+          const _salesPerson = quote.salesContact || "";
+          const _bracketHead = [_ccode, _cname].filter(Boolean).join("：");
+          const _bracket = _bracketHead ? `【${_bracketHead} ご担当営業】` : "";
+          const _trail = [_salesCo, _salesDept, _salesPerson].filter(Boolean).join(" ");
+          const _suffix = _salesPerson ? " 様" : "";
+          const customerLine = _bracket + _trail + _suffix;
           ws.mergeCells(row, 1, row, 5);
           ws.getCell(row, 1).value = customerLine;
           ws.getCell(row, 1).font = { name: "游ゴシック", size: 14, bold: true };
@@ -781,11 +790,8 @@
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
           ws.mergeCells(row, 7, row, 8);
-          const _customRadio = document.getElementById("sc-custom-radio");
-          const _isCustom = _customRadio && _customRadio.checked;
-          const _salesCo = (_isCustom ? quote.salesCompanyOther : quote.salesCompany) || OUR_COMPANY.company;
-          const _salesDept = quote.salesDepartment || OUR_COMPANY.department;
-          const affilText = `${_salesCo}\n${_salesDept}`;
+          // 所属は自社（TOPPAN）固定。担当営業の入力は上の宛名行で使用するため、ここでは上書きしない。
+          const affilText = `${OUR_COMPANY.company}\n${OUR_COMPANY.department}`;
           ws.getCell(row, 7).value = affilText;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
