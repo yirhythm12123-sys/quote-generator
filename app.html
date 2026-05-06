@@ -573,21 +573,27 @@
         }
         function presetsFor(feeType) { return PRESETS[feeType] || []; }
         function onPresetChange(item) {
-          if (!item.preset) return;
+          // プリセット選択が変わったらプリセット関連の値を一旦すべてクリアする
+          item.name = "";
+          item.unitOfferPrice = 0;
+          item.priceText = "";
+          item.customerPrice = null;
+          item.meterAdjustPct = 0;
+          if (!item.preset) {
+            // 自由記入モード — 完全空欄にしてユーザー入力を待つ
+            return;
+          }
           const p = (PRESETS[item.feeType] || []).find(x => x.name === item.preset);
           if (!p) return;
+          // プリセット値を適用
           item.name = p.name;
           if (p.profit !== undefined) item.profitMode = p.profit;
           if (p.price !== undefined) {
             item.unitOfferPrice = fmt(p.price);
-            item.priceText = "";
           }
           if (p.isMeter) {
-            item.meterAdjustPct = 0;
             item.priceText = meterText(0);
-            item.unitOfferPrice = 0;
           }
-          item.customerPrice = null;
         }
         function onMeterAdjustChange(item) {
           item.priceText = meterText(item.meterAdjustPct);
