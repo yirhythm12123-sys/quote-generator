@@ -29,6 +29,18 @@
       margin-top: 2px; padding: 6px 8px; font-size: 0.95rem;
       border: 1px solid #ccc; border-radius: 3px; font-family: inherit;
     }
+    [v-cloak] { display: none !important; }
+    .vue-fallback {
+      display: block;
+      max-width: 700px; margin: 24px auto;
+      padding: 20px; background: #fff3cd; border: 1px solid #ffe082;
+      border-radius: 8px; font-size: 0.95rem; line-height: 1.6;
+    }
+    .vue-fallback h2 { font-size: 1.1rem; margin: 0 0 8px; color: #b8860b; border: 0; }
+    .vue-fallback code {
+      display: block; padding: 8px; background: #fff; border: 1px solid #ddd;
+      border-radius: 4px; word-break: break-all; font-size: 0.85rem; margin: 8px 0;
+    }
     .form-grid textarea { min-height: 60px; resize: vertical; }
     .form-grid .full { grid-column: 1 / -1; }
     .sc-wrap { display: flex; flex-direction: column; font-size: 0.85rem; color: #555; }
@@ -129,7 +141,14 @@
   </style>
 </head>
 <body>
-  <div id="app" class="app">
+  <div id="vue-fallback" class="vue-fallback">
+    <h2>⚠️ このページは Safari ブラウザで開く必要があります</h2>
+    <p>iOS の「ファイル」アプリのプレビューでは JavaScript が実行されないため、このアプリは正しく動作しません。</p>
+    <p>Safari で以下のURLを開いてご利用ください（または、このファイルをSafariで開き直してください）：</p>
+    <code>https://rawcdn.githack.com/yirhythm12123-sys/quote-generator/main/app.html</code>
+    <p style="font-size:0.85rem; color:#666; margin-top:8px;">PCのブラウザでも問題なく動作します。</p>
+  </div>
+  <div id="app" class="app" v-cloak>
     <h1>見積書自動作成ツール</h1>
 
     <section class="card">
@@ -1032,6 +1051,9 @@
         };
       },
     }).mount("#app");
+    // Vue が無事マウントできた = フォールバック表示は不要
+    var _fb = document.getElementById("vue-fallback");
+    if (_fb) _fb.style.display = "none";
   </script>
 </body>
 </html>
