@@ -106,15 +106,13 @@
 
       <h3>顧客情報</h3>
       <div class="form-grid">
+        <label>発行会社コード<input type="text" v-model="quote.customer.companyCode" placeholder="例: ABC123"></label>
         <label>会社名<input type="text" v-model="quote.customer.company"></label>
-        <label>敬称
-          <select v-model="quote.customer.honorific">
-            <option value="御中">御中</option>
-            <option value="様">様</option>
-          </select>
-        </label>
-        <label>部署<input type="text" v-model="quote.customer.department"></label>
-        <label>担当者<input type="text" v-model="quote.customer.contact"></label>
+      </div>
+
+      <h3>担当営業情報</h3>
+      <div class="form-grid">
+        <label>担当営業氏名<input type="text" v-model="quote.salesContact"></label>
       </div>
     </section>
 
@@ -421,7 +419,8 @@
           quoteNumber: "",
           issueDate: todayISO(),
           validUntil: "",
-          customer: { company: "", department: "", contact: "", honorific: "御中" },
+          customer: { companyCode: "", company: "" },
+          salesContact: "",
           cases: [newCase("案A")],
         });
         const activeCaseIndex = ref(0);
@@ -627,7 +626,11 @@
             renderCaseSheet(ws, c, stampImageId, STAMP_PX);
           }
           const buf = await wb.xlsx.writeBuffer();
-          const filename = `${quote.projectName || quote.quoteNumber || "見積書"}_${todayISO()}.xlsx`;
+          const ymd = (quote.issueDate || todayISO()).replace(/-/g, "");
+          const code = quote.customer.companyCode || "";
+          const cname = quote.customer.company || "";
+          const proj = quote.projectName || "";
+          const filename = `【${code}：${cname}】${proj}_${ymd}.xlsx`;
           saveAs(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
         }
 
@@ -656,9 +659,12 @@
           ws.getRow(row).height = 32;
           row += 2;
 
-          // 顧客会社名 御中（左大、罫線下） + 見積番号（右）
+          // 顧客社名 + 担当営業氏名（左大、罫線下） + 見積番号（右）
+          const _cn = quote.customer.company || "";
+          const _sn = quote.salesContact || "";
+          const customerLine = (_cn || _sn) ? `【${_cn}】${_sn}${_sn ? "様" : ""}` : "";
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = `${quote.customer.company || ""} ${quote.customer.honorific || ""}`.trim();
+          ws.getCell(row, 1).value = customerLine;
           ws.getCell(row, 1).font = { name: "游ゴシック", size: 14, bold: true };
           ws.getCell(row, 1).border = { bottom: { style: "thin" } };
           ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
@@ -681,9 +687,8 @@
           ws.getCell(row, 7).font = { size: 10 };
           row++;
 
-          // 顧客部署 + 有効期限
+          // 有効期限（右のみ）
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = quote.customer.department || "";
           ws.getCell(row, 6).value = "有効期限";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
@@ -691,10 +696,8 @@
           ws.getCell(row, 7).font = { size: 10 };
           row++;
 
-          // 顧客担当 + 所属（label F + 会社名/部署を G-H に複数行）
+          // 所属（label F + 会社名/部署を G-H に複数行）
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = quote.customer.contact ? `ご担当 ${quote.customer.contact} 様` : "";
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "top" };
           ws.getCell(row, 6).value = "所属";
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
