@@ -14,25 +14,48 @@
     }
     h1 { font-size: 1.6rem; margin: 0 0 16px; }
     .usage-guide {
-      background: #eef6ff; border: 1px solid #b6d4f0; border-radius: 6px;
+      background: linear-gradient(135deg, #eef6ff 0%, #f4f9ff 100%);
+      border: 1px solid #b6d4f0; border-radius: 8px;
       padding: 12px 16px; margin-bottom: 16px;
+      transition: box-shadow 0.2s;
     }
-    .usage-guide summary { cursor: pointer; font-weight: bold; color: #1b4f7a; font-size: 1rem; }
-    .usage-guide[open] summary { margin-bottom: 8px; }
-    .usage-guide .guide-body { font-size: 0.9rem; line-height: 1.7; color: #333; }
-    .usage-guide h4 { margin: 12px 0 4px; font-size: 0.95rem; color: #1b4f7a; }
-    .usage-guide h4:first-of-type { margin-top: 0; }
-    .usage-guide ol { padding-left: 1.4em; margin: 4px 0; }
-    .usage-guide ul { padding-left: 1.4em; margin: 4px 0 4px; }
-    .usage-guide li { margin-bottom: 4px; }
-    .usage-guide em { color: #2c5d8f; font-style: normal; font-weight: bold; }
+    .usage-guide:hover { box-shadow: 0 2px 8px rgba(43, 93, 143, 0.08); }
+    .usage-guide summary {
+      cursor: pointer; font-weight: bold; color: #1b4f7a; font-size: 1rem;
+      list-style: none; user-select: none;
+    }
+    .usage-guide summary::-webkit-details-marker { display: none; }
+    .usage-guide summary::before {
+      content: "▶"; display: inline-block; margin-right: 6px; font-size: 0.75rem;
+      transition: transform 0.2s; color: #2c5d8f;
+    }
+    .usage-guide[open] summary { margin-bottom: 12px; }
+    .usage-guide[open] summary::before { transform: rotate(90deg); }
+    .usage-guide .guide-body { font-size: 0.88rem; line-height: 1.65; color: #333; }
+    .usage-guide .guide-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;
+    }
+    .usage-guide .guide-section {
+      background: #fff; border: 1px solid #d9e6f3; border-radius: 6px;
+      padding: 10px 14px;
+    }
+    .usage-guide .guide-section h4 {
+      margin: 0 0 6px; font-size: 0.92rem; color: #1b4f7a;
+      padding-bottom: 4px; border-bottom: 1px solid #e3edf6;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .usage-guide ul { padding-left: 1.2em; margin: 0; }
+    .usage-guide li { margin-bottom: 3px; }
+    .usage-guide em { color: #c44; font-style: normal; font-weight: bold; font-size: 0.82rem; }
+    .usage-guide strong { color: #1b4f7a; }
     .usage-guide code {
-      background: #fff; border: 1px solid #c0d4ec; border-radius: 3px;
-      padding: 1px 5px; font-size: 0.85rem;
+      background: #f4f8fc; border: 1px solid #d9e6f3; border-radius: 3px;
+      padding: 1px 5px; font-size: 0.8rem; color: #2c5d8f;
     }
     .usage-guide .guide-note {
-      margin: 8px 0 0; padding: 6px 10px;
-      background: #fff3cd; border-left: 3px solid #ffc107; font-size: 0.85rem;
+      margin: 10px 0 0; padding: 8px 12px;
+      background: #fff8e1; border-left: 3px solid #ffc107; border-radius: 4px;
+      font-size: 0.83rem; color: #5d4e16;
     }
     h2 { font-size: 1.2rem; margin: 24px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #2c5d8f; }
     h3 { font-size: 1rem; margin: 16px 0 6px; color: #2c5d8f; }
@@ -175,60 +198,54 @@
   <div id="app" class="app" v-cloak>
     <h1>見積書自動作成ツール</h1>
 
-    <details class="usage-guide" open>
-      <summary>📖 使い方ガイド（クリックで開閉）</summary>
+    <details class="usage-guide">
+      <summary>📖 使い方ガイド</summary>
       <div class="guide-body">
+        <div class="guide-grid">
 
-        <h4>① 共通情報 / 顧客情報 / 担当営業情報を入力</h4>
-        <ul>
-          <li><strong>案件名</strong>・<strong>発行日</strong>・<strong>有効期限</strong></li>
-          <li><strong>発行会社コード</strong>（半角数字7桁限定 / 例: 7130001）と<strong>会社名</strong></li>
-          <li><strong>担当営業の会社名</strong>はプルダウン（TOPPAN株式会社 / TOPPANクロレ株式会社 / その他自由記入）。
-              「その他」を選ぶとプルダウンが入力欄に入れ替わります（▼ボタンで一覧に戻せます）</li>
-          <li><strong>担当営業氏名</strong>・<strong>部署名</strong></li>
-        </ul>
+          <div class="guide-section">
+            <h4>📝 ① 基本情報を入力</h4>
+            <ul>
+              <li><strong>共通情報</strong>: 案件名 / 発行日 / 有効期限</li>
+              <li><strong>顧客情報</strong>: 発行会社コード(半角7桁) / 会社名</li>
+              <li><strong>担当営業</strong>: 会社名(タブで「一覧から選択」⇄「自由記入」切替) / 氏名 / 部署名</li>
+            </ul>
+          </div>
 
-        <h4>② 案セクションで明細を入力</h4>
-        <ul>
-          <li><strong>費用区分</strong>（初期 / 月額基本 / 月額従量 / 都度）を選ぶと
-              <em>単位</em>（式/月）と<em>備考</em>（月額基本は「月の基本利用料金」）が自動セット</li>
-          <li><strong>品目名</strong>はプリセット（POS接続方式など）か「（自由記入）」を選択。
-              プリセットを選ぶと <em>出値単価</em> と <em>利益モード=固定</em>（営業利益乗せない）が自動入力。
-              プリセットを切り替えるたびに古い値はリセットされます</li>
-          <li><strong>月の従量料金</strong>を選ぶと「月の入金金額に対して1.5%」が自動入力。
-              %調整プルダウンで <em>−1.5% 〜 +1.5%</em>（0.1%刻み）の加減算可、「元に戻す」でリセット</li>
-          <li><strong>出元</strong>（部 / SE）と<strong>利益モード</strong>を選択。組合せにより選択肢が制限されます（自動制御）</li>
-          <li><strong>出値単価</strong>を入力（カンマ不要、フォーカスを外すと自動付与）</li>
-          <li><strong>自動計算額</strong>は利益式に基づいて自動算出。
-              <strong>顧客出値</strong>は端数なら千円単位で自動切上げ。
-              「加算」プルダウン（+1,000〜+9,000）で更に上乗せ、「元に戻す」で初期値に戻せます</li>
-          <li><strong>備考</strong>は自由記入欄</li>
-          <li>「行を追加」で明細行を増やせます</li>
-        </ul>
+          <div class="guide-section">
+            <h4>📋 ② 明細を入力</h4>
+            <ul>
+              <li><strong>費用区分</strong>を選ぶと <em>単位・備考</em> が自動セット</li>
+              <li><strong>品目プリセット</strong>選択で 単価・利益モード・備考 が自動入力</li>
+              <li><em>NEW</em> <strong>セット品目</strong>(デジタルギフト・決済アプリ連携・POS接続方式 等)はどれか1つ選ぶだけで関連区分の行も自動追加</li>
+              <li>月の従量料金は <code>±1.5%</code> (0.1%刻み)の調整プルダウン付き</li>
+              <li>出値単価はカンマ不要(フォーカスを外すと自動整形)</li>
+              <li>顧客出値は端数なら千円単位で自動切上げ。<code>+1,000〜+9,000</code> で微調整、「元に戻す」でリセット</li>
+            </ul>
+          </div>
 
-        <h4>③ 複数案の作成・並べ替え</h4>
-        <ul>
-          <li>「<strong>案を追加</strong>」で複数案を並行作成（Excel出力時は1案=1シート）</li>
-          <li>タブを<strong>ドラッグ</strong>して順番を入れ替え可能（PCはマウス、スマホはタッチ）。並び順がそのままシート順に反映</li>
-          <li>「<strong>案名変更</strong>」で固有名（例: "新規導入案"）に変更可</li>
-          <li>「<strong>案を削除</strong>」: 残ったデフォルト名（案A/B/...）は自動繰り上げ。固有名は維持</li>
-          <li>案が1件のみの時は「<strong>案をリセット</strong>」表示。明細だけ初期化（共通情報は維持）</li>
-        </ul>
+          <div class="guide-section">
+            <h4>📑 ③ 案の管理</h4>
+            <ul>
+              <li>「案を追加」で複数案を並行作成 (1案 = 1シート)</li>
+              <li>タブ<strong>ドラッグ</strong>で順番入替 → そのままシート順に反映</li>
+              <li>削除時、案A/B/… は自動繰り上げ。固有名は保持</li>
+              <li>1案のみは「案をリセット」で明細のみ初期化(共通情報は保持)</li>
+            </ul>
+          </div>
 
-        <h4>④ 内部用サマリを確認</h4>
-        <p>顧客出値・企画依頼金額・営業利益・SE出値・粗利を費用区分（初期/月額/都度）ごとに小計＋総合計で確認できます。</p>
+          <div class="guide-section">
+            <h4>📊 ④ サマリ確認 & Excel出力</h4>
+            <ul>
+              <li><strong>内部用サマリ</strong>で顧客出値・企画依頼金額・営業利益・SE出値・粗利を区分ごとに確認</li>
+              <li>「Excel出力」で <code>【会社名様】担当営業向け御見積書(案件名)_YYYYMMDD.xlsx</code> を生成</li>
+              <li>横向きA4 / 1ページ自動スケーリング / 自社情報・印枠を自動配置</li>
+            </ul>
+          </div>
 
-        <h4>⑤ Excel出力</h4>
-        <ul>
-          <li>右下の「<strong>Excel出力</strong>」ボタンでダウンロード</li>
-          <li>ファイル名: <code>【発行会社名様】担当営業向け御見積書(案件名)_YYYYMMDD.xlsx</code></li>
-          <li>自社情報（TOPPAN株式会社の所属・住所）と担当・上長の印枠が自動配置（自社情報は固定）</li>
-          <li>横向き / fitToPage で1ページに収まるよう自動スケーリング</li>
-          <li>シート末尾に内部用サマリも出力されます（※社外秘）</li>
-        </ul>
+        </div>
 
-        <p class="guide-note">⚠️ Excelには <strong>内部用サマリ（社外秘）</strong> が含まれます。<br>
-        顧客送付前に該当行を必ず削除してください。</p>
+        <p class="guide-note">⚠️ <strong>内部用サマリ(社外秘)</strong> がExcelに含まれます。顧客送付前に必ず削除してください。</p>
       </div>
     </details>
 
