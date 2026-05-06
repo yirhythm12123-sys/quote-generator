@@ -706,10 +706,9 @@
           }
           const buf = await wb.xlsx.writeBuffer();
           const ymd = (quote.issueDate || todayISO()).replace(/-/g, "");
-          const code = quote.customer.companyCode || "";
           const cname = quote.customer.company || "";
           const proj = quote.projectName || "";
-          const filename = `【${code}：${cname}】${proj}_${ymd}.xlsx`;
+          const filename = `【${cname}様】担当営業向け御見積書(${proj})_${ymd}.xlsx`;
           saveAs(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
         }
 
@@ -736,10 +735,11 @@
             if (required <= usable) return base;
             return Math.max(min, Math.floor(base * usable / required * 10) / 10);
           }
-          // 列幅は line item の最広コンテンツに合わせて余裕を持たせる
+          // 列幅は line item と内部用サマリの両方で見切れないように設定
+          // (col 3/4 はサマリの企画依頼金額・営業利益にも使われる)
           ws.columns = [
-            { width: 6 }, { width: 32 }, { width: 8 }, { width: 8 }, { width: 14 },
-            { width: 14 }, { width: 16 }, { width: 16 },
+            { width: 6 }, { width: 28 }, { width: 14 }, { width: 14 }, { width: 14 },
+            { width: 14 }, { width: 16 }, { width: 14 },
           ];
           const COLS = 8;
           let row = 1;
