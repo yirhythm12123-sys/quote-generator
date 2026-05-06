@@ -129,11 +129,14 @@
       <h3>担当営業情報</h3>
       <div class="sales-grid">
         <label>会社名
-          <input type="text" v-model="quote.salesCompany" list="sales-co-options" placeholder="例: TOPPAN株式会社">
-          <datalist id="sales-co-options">
-            <option value="TOPPAN株式会社"></option>
-            <option value="TOPPANクロレ株式会社"></option>
-          </datalist>
+          <select v-model="quote.salesCompany"
+                  onchange="document.getElementById('sales-other-input').style.display = (this.value === '__other__') ? '' : 'none'">
+            <option value="TOPPAN株式会社">TOPPAN株式会社</option>
+            <option value="TOPPANクロレ株式会社">TOPPANクロレ株式会社</option>
+            <option value="__other__">その他(自由記入)</option>
+          </select>
+          <input id="sales-other-input" type="text" v-model="quote.salesCompanyOther"
+                 placeholder="会社名を入力" style="display:none; margin-top:4px;">
         </label>
         <label>担当営業氏名<input type="text" v-model="quote.salesContact"></label>
         <label>部署名<input type="text" v-model="quote.salesDepartment" placeholder="例: 情報ソリューションBU セキュアDX事業部 ..."></label>
@@ -451,6 +454,7 @@
           validUntil: "",
           customer: { companyCode: "", company: "" },
           salesCompany: "TOPPAN株式会社",
+          salesCompanyOther: "",
           salesDepartment: "",
           salesContact: "",
           cases: [newCase("案A")],
@@ -734,7 +738,7 @@
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
           ws.mergeCells(row, 7, row, 8);
-          const _salesCo = quote.salesCompany || OUR_COMPANY.company;
+          const _salesCo = (quote.salesCompany === "__other__" ? quote.salesCompanyOther : quote.salesCompany) || OUR_COMPANY.company;
           const _salesDept = quote.salesDepartment || OUR_COMPANY.department;
           const affilText = `${_salesCo}\n${_salesDept}`;
           ws.getCell(row, 7).value = affilText;
