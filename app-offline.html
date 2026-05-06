@@ -95,6 +95,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     }
     .form-grid textarea { min-height: 60px; resize: vertical; }
     .form-grid .full { grid-column: 1 / -1; }
+    [hidden] { display: none !important; }
+    .sales-co-edit { display: flex; gap: 4px; width: 100%; }
+    .sales-co-edit input { flex: 1; }
+    .sales-co-edit button.back-btn {
+      padding: 0 10px; height: 38px; background: #fff; color: #2c5d8f;
+      border: 1px solid #2c5d8f; border-radius: 3px; cursor: pointer; flex: 0 0 auto;
+    }
     .sales-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -193,14 +200,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <h3>担当営業情報</h3>
       <div class="sales-grid">
         <label>会社名
-          <select v-model="quote.salesCompany"
-                  onchange="document.getElementById('sales-other-input').style.display = (this.value === '__other__') ? '' : 'none'">
+          <select id="sc-select" v-model="quote.salesCompany"
+                  onchange="if(this.value==='__other__'){this.hidden=true;document.getElementById('sc-edit').hidden=false;document.getElementById('sc-input').focus();}">
             <option value="TOPPAN株式会社">TOPPAN株式会社</option>
             <option value="TOPPANクロレ株式会社">TOPPANクロレ株式会社</option>
             <option value="__other__">その他(自由記入)</option>
           </select>
-          <input id="sales-other-input" type="text" v-model="quote.salesCompanyOther"
-                 placeholder="会社名を入力" style="display:none; margin-top:4px;">
+          <span id="sc-edit" class="sales-co-edit" hidden>
+            <input id="sc-input" type="text" v-model="quote.salesCompanyOther" placeholder="会社名を入力">
+            <button type="button" class="back-btn"
+                    onclick="document.getElementById('sc-edit').hidden=true;var s=document.getElementById('sc-select');s.hidden=false;s.value='TOPPAN株式会社';"
+                    title="一覧に戻る">▼</button>
+          </span>
         </label>
         <label>担当営業氏名<input type="text" v-model="quote.salesContact"></label>
         <label>部署名<input type="text" v-model="quote.salesDepartment" placeholder="例: 情報ソリューションBU セキュアDX事業部 ..."></label>
