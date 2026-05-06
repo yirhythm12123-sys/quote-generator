@@ -129,15 +129,19 @@
       <h3>担当営業情報</h3>
       <div class="sales-grid">
         <label>会社名
-          <select v-model="quote.salesCompany">
+          <select v-if="!quote.salesCustom" v-model="quote.salesCompany" @change="onSalesCompanyChange">
             <option value="TOPPAN株式会社">TOPPAN株式会社</option>
             <option value="TOPPANクロレ株式会社">TOPPANクロレ株式会社</option>
-            <option value="other">その他(自由記入)</option>
+            <option value="__other__">その他(自由記入)</option>
           </select>
+          <div v-else style="display:flex; gap:4px;">
+            <input type="text" v-model="quote.salesCompany" placeholder="会社名を入力" style="flex:1">
+            <button type="button" @click="quote.salesCustom = false; quote.salesCompany = 'TOPPAN株式会社'"
+                    style="padding:0 10px; background:#fff; color:#2c5d8f; border:1px solid #2c5d8f; border-radius:3px; height:38px;" title="一覧から選択に戻す">▼</button>
+          </div>
         </label>
         <label>担当営業氏名<input type="text" v-model="quote.salesContact"></label>
         <label>部署名<input type="text" v-model="quote.salesDepartment" placeholder="例: 情報ソリューションBU セキュアDX事業部 ..."></label>
-        <label v-if="quote.salesCompany === 'other'" class="full">会社名(自由記入)<input type="text" v-model="quote.salesCompanyOther"></label>
       </div>
     </section>
 
@@ -452,7 +456,7 @@
           validUntil: "",
           customer: { companyCode: "", company: "" },
           salesCompany: "TOPPAN株式会社",
-          salesCompanyOther: "",
+          salesCustom: false,
           salesDepartment: "",
           salesContact: "",
           cases: [newCase("案A")],
@@ -462,6 +466,12 @@
 
         function profitOptions(item) { return PROFIT_MODE_OPTIONS[item.source][item.feeType]; }
         function profitLabel(mode) { return PROFIT_LABELS[mode] || mode; }
+        function onSalesCompanyChange() {
+          if (quote.salesCompany === "__other__") {
+            quote.salesCustom = true;
+            quote.salesCompany = "";
+          }
+        }
         function onSourceFeeChange(item) {
           const allowed = profitOptions(item);
           if (!allowed.includes(item.profitMode)) item.profitMode = allowed[0];
@@ -736,7 +746,7 @@
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
           ws.mergeCells(row, 7, row, 8);
-          const _salesCo = (quote.salesCompany === "other" ? quote.salesCompanyOther : quote.salesCompany) || OUR_COMPANY.company;
+          const _salesCo = quote.salesCompany || OUR_COMPANY.company;
           const _salesDept = quote.salesDepartment || OUR_COMPANY.department;
           const affilText = `${_salesCo}\n${_salesDept}`;
           ws.getCell(row, 7).value = affilText;
@@ -995,6 +1005,7 @@
           isTextItem,
           profitOptions, profitLabel, onSourceFeeChange,
           presetsFor, onPresetChange, onMeterAdjustChange, onMeterAdjustSelect, meterAdjustOptions,
+          onSalesCompanyChange,
           calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice, bumpCustomerPrice, onBumpSelect,
           bumpAmounts: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000],
           calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
