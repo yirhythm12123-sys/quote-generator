@@ -786,6 +786,20 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
 
         function renderCaseSheet(ws, c, stampImageId, stampPx) {
+          // 結合セルでは shrinkToFit が効かないため、文字数からフォントサイズを動的計算
+          function fitFont(text, totalColWidth, base, min) {
+            if (!text) return base;
+            min = min || 8;
+            let units = 0;
+            for (const ch of String(text)) {
+              units += /[\x00-\x7F]/.test(ch) ? 1 : 2.05;
+            }
+            const usable = totalColWidth * 1.05; // セル幅単位はおおむね「半角1文字」
+            const scale = base / 11;
+            const required = units * scale;
+            if (required <= usable) return base;
+            return Math.max(min, Math.floor(base * usable / required * 10) / 10);
+          }
           // 列幅は line item の最広コンテンツに合わせて余裕を持たせる
           ws.columns = [
             { width: 6 }, { width: 32 }, { width: 8 }, { width: 8 }, { width: 14 },
@@ -818,28 +832,29 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const customerLine = _bracket + _trail + _suffix;
           ws.mergeCells(row, 1, row, 5);
           ws.getCell(row, 1).value = customerLine;
-          ws.getCell(row, 1).font = { name: "游ゴシック", size: 14, bold: true };
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(customerLine, 68, 14, 9), bold: true };
           ws.getCell(row, 1).border = { bottom: { style: "thin" } };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
           ws.getCell(row, 6).value = "見積番号";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.quoteNumber;
-          ws.getCell(row, 7).font = { size: 10 };
-          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
+          ws.getCell(row, 7).font = { size: fitFont(quote.quoteNumber, 30, 10, 8) };
+          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle" };
           row++;
 
           // 件名（左寄せ） + 発行日（右）
+          const projVal = quote.projectName ? `件名: ${quote.projectName}` : "";
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = quote.projectName ? `件名: ${quote.projectName}` : "";
-          ws.getCell(row, 1).font = { name: "游ゴシック", size: 12, bold: true };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
+          ws.getCell(row, 1).value = projVal;
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(projVal, 68, 12, 9), bold: true };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
           ws.getCell(row, 6).value = "発行日";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.issueDate;
           ws.getCell(row, 7).font = { size: 10 };
-          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
+          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle" };
           row++;
 
           // 有効期限（右のみ）
@@ -849,7 +864,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.validUntil;
           ws.getCell(row, 7).font = { size: 10 };
-          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
+          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle" };
           row++;
 
           // 所属（label F + 会社名/部署を G-H に複数行）
