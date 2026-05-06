@@ -764,7 +764,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             const sheetName = sanitizeSheetName(c.name, usedNames);
             const ws = wb.addWorksheet(sheetName, {
               properties: { defaultRowHeight: 18 },
-              pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+              pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 1 },
             });
             renderCaseSheet(ws, c, stampImageId, STAMP_PX);
           }
@@ -812,9 +812,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.mergeCells(row, 1, row, COLS);
           const titleCell = ws.getCell(row, 1);
           titleCell.value = "見 積 書";
-          titleCell.font = { name: "游ゴシック", size: 20, bold: true };
+          titleCell.font = { name: "游ゴシック", size: 22, bold: true };
           titleCell.alignment = { horizontal: "center", vertical: "middle" };
-          ws.getRow(row).height = 32;
+          ws.getRow(row).height = 44;
           row += 2;
 
           // 宛名（2行構成）+ 見積メタデータ（右）
@@ -861,12 +861,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle" };
           row++;
 
-          // Row N+2: 件名 + 有効期限
-          const projVal = quote.projectName ? `件名: ${quote.projectName}` : "";
+          // Row N+2: 左側は空 + 有効期限（右）
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = projVal;
-          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(projVal, 68, 12, 9), bold: true };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
           ws.getCell(row, 6).value = "有効期限";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
@@ -875,12 +871,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle" };
           row++;
 
-          // 所属（label F + 会社名/部署を G-H に複数行）
-          // 左側 A:E は導入メッセージを下寄せで配置
+          // Row N+3: 件名 + 所属（label F + 会社名/部署を G-H に複数行）
+          const projVal = quote.projectName ? `件名: ${quote.projectName}` : "";
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = "担当営業向け御見積は下記の通りです。ご査収ください。";
-          ws.getCell(row, 1).font = { name: "游ゴシック", size: 13, bold: true };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "bottom", wrapText: true };
+          ws.getCell(row, 1).value = projVal;
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(projVal, 68, 12, 9), bold: true };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
           ws.getCell(row, 6).value = "所属";
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
@@ -890,10 +886,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 7).value = affilText;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
-          ws.getRow(row).height = affilText.split("\n").length * 12 + 4;
+          ws.getRow(row).height = affilText.split("\n").length * 14 + 8;
           row++;
 
-          // 住所（label F + 値 G-H 複数行）
+          // Row N+4: 導入メッセージ（下寄せ）+ 住所（label F + 値 G-H 複数行）
+          ws.mergeCells(row, 1, row, 5);
+          ws.getCell(row, 1).value = "担当営業向け御見積は下記の通りです。ご査収ください。";
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: 13, bold: true };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "bottom", wrapText: true };
           ws.getCell(row, 6).value = "住所";
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
@@ -901,7 +901,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 7).value = OUR_COMPANY.address;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
-          ws.getRow(row).height = OUR_COMPANY.address.split("\n").length * 12 + 4;
+          ws.getRow(row).height = OUR_COMPANY.address.split("\n").length * 14 + 8;
           row++;
 
           // 担当・上長 印枠ラベル（住所の下、cols 7・8）
@@ -924,7 +924,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             ext: { width: stampPx, height: stampPx },
           });
           const metaBottomRow = row;  // F:H 自社情報ブロック終了行（印枠行）
-          row += 2;
+          row += 4;  // 印枠が初期費用領域に入り込まないよう A11・A12 を空行として確保
 
           // F:H の自社情報ブロックを点線で囲む
           const dotted = { style: "dotted", color: { argb: "FF666666" } };
@@ -1030,7 +1030,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           row += 2;
 
           row += 1;
-          ws.mergeCells(row, 1, row, COLS);
+          const summaryStartRow = row;  // 印刷可能範囲の終端を計算するために保持
+          ws.mergeCells(row, 1, row, 6);  // A:F のみ塗りつぶし範囲（G/H は対象外）
           const sumTitle = ws.getCell(row, 1);
           sumTitle.value = "【内部用サマリ】 ※社外秘";
           sumTitle.font = { bold: true, size: 12, color: { argb: "FFCC4444" } };
@@ -1045,8 +1046,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             const items = c.lineItems.filter(i => feeGroupOf(i.feeType) === group);
             if (items.length === 0) continue;
 
-            // 区分見出し
-            ws.mergeCells(row, 1, row, COLS);
+            // 区分見出し（A:F のみ）
+            ws.mergeCells(row, 1, row, 6);
             const sectionLabel = ws.getCell(row, 1);
             sectionLabel.value = `【${FEE_GROUP_LABELS[group]}】`;
             sectionLabel.font = { bold: true, color: { argb: "FFCC4444" } };
@@ -1132,6 +1133,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             }
           });
           row++;
+
+          // 印刷可能範囲: A1 から 内部用サマリ の 2 行上まで（横は H 列）
+          const printEndRow = Math.max(1, summaryStartRow - 2);
+          ws.pageSetup.printArea = `A1:H${printEndRow}`;
         }
 
         function thinAll() {
