@@ -556,6 +556,25 @@
       spot: [],
     };
     const DEFAULT_UNITS = { initial: "式", monthly_base: "月", monthly_meter: "月", spot: "式" };
+    // 初期+月額基本+月額従量 でセット販売される品目の組合せ。
+    // どれか1つのプリセットが選ばれたら、残り2つを自動で行追加する。
+    const PRESET_SETS = [
+      {
+        name: "デジタルギフト",
+        initial:       "デジタルギフト導入費",
+        monthly_base:  "デジタルギフト基本利用料",
+        monthly_meter: "デジタルギフト発行費用",
+      },
+      {
+        name: "決済アプリ連携",
+        initial:       "決済アプリ連携導入費",
+        monthly_base:  "決済アプリ連携基本利用料",
+        monthly_meter: "決済アプリ連携トランザクション処理料金",
+      },
+    ];
+    function findPresetSet(feeType, presetName) {
+      return PRESET_SETS.find(s => s[feeType] === presetName);
+    }
     const OUR_COMPANY = {
       company: "TOPPAN株式会社",
       department: [
@@ -644,7 +663,7 @@
           }
         }
         function presetsFor(feeType) { return PRESETS[feeType] || []; }
-        function onPresetChange(item) {
+        function onPresetChange(item, _skipAutoAdd) {
           // プリセット選択が変わったらプリセット関連の値を一旦すべてクリアする
           item.name = "";
           item.unitOfferPrice = 0;
@@ -670,6 +689,28 @@
           if (p.note !== undefined) item.note = p.note;
           if (p.isMeter) {
             item.priceText = meterText(0);
+          }
+          // セット品目なら、他の費用区分のセットメンバを自動追加
+          if (_skipAutoAdd) return;
+          const set = findPresetSet(item.feeType, item.preset);
+          if (!set) return;
+          const setFeeTypes = ["initial", "monthly_base", "monthly_meter"];
+          for (const ft of setFeeTypes) {
+            if (ft === item.feeType) continue;
+            const presetName = set[ft];
+            if (!presetName) continue;
+            // 既に同じプリセットの行が存在するならスキップ
+            const exists = activeCase.value.lineItems.some(
+              li => li.feeType === ft && li.preset === presetName
+            );
+            if (exists) continue;
+            // 新しい行を作成して preset を適用 (再帰の自動追加は抑止)
+            const newItem = newLineItem();
+            newItem.feeType = ft;
+            newItem.preset = presetName;
+            onSourceFeeChange(newItem);
+            onPresetChange(newItem, true);
+            activeCase.value.lineItems.push(newItem);
           }
         }
         function onMeterAdjustChange(item) {
