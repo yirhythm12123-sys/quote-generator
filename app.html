@@ -100,6 +100,9 @@
       border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 0.9rem;
     }
     .case-tab.active { background: #fff; font-weight: bold; color: #2c5d8f; }
+    .case-tab.dragover { background: #c0d4ec; box-shadow: 0 0 0 2px #2c5d8f inset; }
+    .case-tab .drag-handle { display: inline-block; color: #999; margin-right: 2px; cursor: grab; user-select: none; }
+    .case-tab:active .drag-handle { cursor: grabbing; }
     .case-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
     .lines-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
     table.lines { width: 100%; min-width: 1300px; border-collapse: collapse; font-size: 0.85rem; }
@@ -233,9 +236,19 @@
     <section class="card">
       <h2>案（複数作成可）</h2>
       <div class="case-tabs">
-        <div v-for="(c, idx) in quote.cases" :key="idx"
-             class="case-tab" :class="{ active: idx === activeCaseIndex }"
-             @click="activeCaseIndex = idx">{{ c.name }}</div>
+        <div v-for="(c, idx) in quote.cases" :key="c.__id || idx"
+             :data-idx="idx"
+             class="case-tab" :class="{ active: idx === activeCaseIndex, dragover: dragoverIdx === idx }"
+             draggable="true"
+             @click="activeCaseIndex = idx"
+             @dragstart="onDragStart(idx, $event)"
+             @dragover.prevent="dragoverIdx = idx"
+             @dragleave="dragoverIdx = null"
+             @drop.prevent="onDrop(idx, $event)"
+             @dragend="dragoverIdx = null"
+             @touchstart.passive="onTouchStart(idx, $event)"
+             @touchmove="onTouchMove($event)"
+             @touchend="onTouchEnd($event)"><span class="drag-handle">⠿</span> {{ c.name }}</div>
         <div class="case-actions">
           <button class="ghost small" @click="renameCase">案名変更</button>
           <button class="ghost small" @click="addCase">案を追加</button>
@@ -705,7 +718,16 @@
           }
         }
         function addCase() {
-          const nextLetter = String.fromCharCode(65 + quote.cases.length);
+          // 既存のデフォルト命名で使用済みの文字を集めて、未使用の最初の文字を割当
+          const usedDefaults = new Set();
+          quote.cases.forEach(c => {
+            const m = (c.name || "").match(/^案([A-Z])$/);
+            if (m) usedDefaults.add(m[1]);
+          });
+          let nextLetter = "A";
+          while (usedDefaults.has(nextLetter)) {
+            nextLetter = String.fromCharCode(nextLetter.charCodeAt(0) + 1);
+          }
           quote.cases.push(newCase(`案${nextLetter}`));
           activeCaseIndex.value = quote.cases.length - 1;
         }
@@ -713,11 +735,55 @@
           if (quote.cases.length <= 1) return;
           if (!confirm(`「${activeCase.value.name}」を削除しますか？`)) return;
           quote.cases.splice(activeCaseIndex.value, 1);
-          activeCaseIndex.value = Math.max(0, activeCaseIndex.value - 1);
-          // 残りの案を 案A, 案B, ... に自動繰り上げ
-          quote.cases.forEach((c, i) => {
-            c.name = `案${String.fromCharCode(65 + i)}`;
+          // デフォルト命名 (案A/B/...) のものだけ繰り上げ。固有名は維持。
+          let defaultIdx = 0;
+          quote.cases.forEach((c) => {
+            if (/^案[A-Z]$/.test(c.name || "")) {
+              c.name = `案${String.fromCharCode(65 + defaultIdx)}`;
+              defaultIdx++;
+            }
           });
+          activeCaseIndex.value = Math.min(activeCaseIndex.value, quote.cases.length - 1);
+        }
+        // ===== 案タブ並べ替え（HTML5 drag + touch） =====
+        const dragoverIdx = ref(null);
+        let _touchSrcIdx = null;
+        function _reorderCase(srcIdx, targetIdx) {
+          if (srcIdx == null || isNaN(srcIdx) || srcIdx === targetIdx) return;
+          const activeObj = quote.cases[activeCaseIndex.value];
+          const moved = quote.cases.splice(srcIdx, 1)[0];
+          quote.cases.splice(targetIdx, 0, moved);
+          activeCaseIndex.value = quote.cases.indexOf(activeObj);
+        }
+        function onDragStart(idx, e) {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", String(idx));
+        }
+        function onDrop(targetIdx, e) {
+          const srcIdx = Number(e.dataTransfer.getData("text/plain"));
+          _reorderCase(srcIdx, targetIdx);
+          dragoverIdx.value = null;
+        }
+        function onTouchStart(idx, e) { _touchSrcIdx = idx; }
+        function onTouchMove(e) {
+          if (_touchSrcIdx == null) return;
+          const t = e.touches && e.touches[0];
+          if (!t) return;
+          const el = document.elementFromPoint(t.clientX, t.clientY);
+          const tab = el && el.closest && el.closest(".case-tab");
+          dragoverIdx.value = tab ? Number(tab.dataset.idx) : null;
+        }
+        function onTouchEnd(e) {
+          if (_touchSrcIdx == null) return;
+          const t = e.changedTouches && e.changedTouches[0];
+          const el = t && document.elementFromPoint(t.clientX, t.clientY);
+          const tab = el && el.closest && el.closest(".case-tab");
+          if (tab) {
+            const targetIdx = Number(tab.dataset.idx);
+            _reorderCase(_touchSrcIdx, targetIdx);
+          }
+          _touchSrcIdx = null;
+          dragoverIdx.value = null;
         }
         function resetCase() {
           // 案が1件しかないときに「案を削除」の代わりに表示されるリセット用関数
@@ -1166,6 +1232,7 @@
           caseTotalsByFee, caseGrandTotal,
           summaryTotals, summaryItemsByFee, summarySubtotals, feeLabel, grossMarginPct,
           fmt, addLine, removeLine, addCase, removeCase, resetCase, renameCase, exportExcel,
+          dragoverIdx, onDragStart, onDrop, onTouchStart, onTouchMove, onTouchEnd,
         };
       },
     }).mount("#app");
