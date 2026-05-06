@@ -1189,15 +1189,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
           // 印枠画像（担当・上長、ラベル入り、同一サイズ）
           // 列幅(備考列)を広げても担当印と上長印が離れないよう、
-          // 上長印は担当印の右隣に EMU 単位の絶対オフセットで固定配置する。
-          const PX_PER_EMU = 9525;
+          // 上長印は担当印のサイズ分だけフラクショナル col で右にずらして固定配置する。
+          // (col 7 = 1-indexed = column G = 0-indexed col 6, 幅 26ch ≈ 182px)
+          const colGWidthChars = (ws.columns[6] && ws.columns[6].width) || 14;
+          const colGWidthPx = colGWidthChars * 7 + 5;  // Calibri 11 概算
+          const fracForJocho = stampPx / colGWidthPx;
           ws.getRow(row).height = 120;  // 100px stamp が確実に収まるよう余裕をもって 120pt
           ws.addImage(stampImageIdTanto, {
             tl: { col: 6, row: row - 1 },
             ext: { width: stampPx, height: stampPx },
           });
           ws.addImage(stampImageIdJocho, {
-            tl: { col: 6, row: row - 1, nativeColOff: stampPx * PX_PER_EMU, nativeRowOff: 0 },
+            tl: { col: 6 + fracForJocho, row: row - 1 },
             ext: { width: stampPx, height: stampPx },
           });
           const stampRow = row;
