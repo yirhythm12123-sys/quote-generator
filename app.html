@@ -811,7 +811,7 @@
           const projVal = quote.projectName ? `件名: ${quote.projectName}` : "";
           ws.mergeCells(row, 1, row, 5);
           ws.getCell(row, 1).value = projVal;
-          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(projVal, 68, 12, 9), bold: true };
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(projVal, 68, 13, 9), bold: true };
           ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
           ws.getCell(row, 6).value = "所属";
           ws.getCell(row, 6).font = { size: 9, bold: true };
@@ -822,7 +822,7 @@
           ws.getCell(row, 7).value = affilText;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
-          ws.getRow(row).height = affilText.split("\n").length * 14 + 8;
+          ws.getRow(row).height = Math.max(affilText.split("\n").length * 18 + 12, 110);
           row++;
 
           // Row N+4: 導入メッセージ（下寄せ）+ 住所（label F + 値 G-H 複数行）
@@ -837,7 +837,7 @@
           ws.getCell(row, 7).value = OUR_COMPANY.address;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
-          ws.getRow(row).height = OUR_COMPANY.address.split("\n").length * 14 + 8;
+          ws.getRow(row).height = Math.max(OUR_COMPANY.address.split("\n").length * 18 + 12, 64);
           row++;
 
           // 担当・上長 印枠ラベル（住所の下、cols 7・8）
@@ -850,7 +850,7 @@
           row++;
 
           // 印枠画像（同一サイズ）
-          ws.getRow(row).height = Math.ceil(stampPx / 1.333);
+          ws.getRow(row).height = 120;  // 100px stamp が確実に収まるよう余裕をもって 120pt
           ws.addImage(stampImageId, {
             tl: { col: 6, row: row - 1 },
             ext: { width: stampPx, height: stampPx },
@@ -860,7 +860,7 @@
             ext: { width: stampPx, height: stampPx },
           });
           const metaBottomRow = row;  // F:H 自社情報ブロック終了行（印枠行）
-          row += 4;  // 印枠が初期費用領域に入り込まないよう A11・A12 を空行として確保
+          row += 6;  // 印枠と初期費用テーブルの間に十分な空行を確保
 
           // F:H の自社情報ブロックを点線で囲む
           const dotted = { style: "dotted", color: { argb: "FF666666" } };
