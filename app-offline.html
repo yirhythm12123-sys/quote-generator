@@ -733,7 +733,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           if (next && next.trim()) activeCase.value.name = next.trim();
         }
 
-        function makeStampBoxBuffer(sizePx) {
+        function makeStampBoxBuffer(sizePx, label) {
           return new Promise((resolve, reject) => {
             const canvas = document.createElement("canvas");
             canvas.width = sizePx;
@@ -744,6 +744,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             ctx.strokeStyle = "#333333";
             ctx.lineWidth = 2;
             ctx.strokeRect(1, 1, sizePx - 2, sizePx - 2);
+            if (label) {
+              ctx.fillStyle = "#333333";
+              ctx.font = "bold 14px 'Yu Gothic', '游ゴシック', 'Hiragino Sans', sans-serif";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(label, sizePx / 2, sizePx / 2);
+            }
             canvas.toBlob(async (blob) => {
               if (!blob) return reject(new Error("toBlob failed"));
               try { resolve(await blob.arrayBuffer()); }
@@ -755,10 +762,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const wb = new ExcelJS.Workbook();
           wb.creator = OUR_COMPANY.company;
           wb.created = new Date();
-          // 印枠画像（担当・上長 共通）
+          // 印枠画像（担当・上長 それぞれラベル入り）
           const STAMP_PX = 100;
-          const stampBuf = await makeStampBoxBuffer(STAMP_PX);
-          const stampImageId = wb.addImage({ buffer: stampBuf, extension: "png" });
+          const stampBufTanto = await makeStampBoxBuffer(STAMP_PX, "担当");
+          const stampBufJocho = await makeStampBoxBuffer(STAMP_PX, "上長");
+          const stampImageIdTanto = wb.addImage({ buffer: stampBufTanto, extension: "png" });
+          const stampImageIdJocho = wb.addImage({ buffer: stampBufJocho, extension: "png" });
           const usedNames = new Set();
           for (const c of quote.cases) {
             const sheetName = sanitizeSheetName(c.name, usedNames);
@@ -766,7 +775,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
               properties: { defaultRowHeight: 18 },
               pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 1 },
             });
-            renderCaseSheet(ws, c, stampImageId, STAMP_PX);
+            renderCaseSheet(ws, c, stampImageIdTanto, stampImageIdJocho, STAMP_PX);
           }
           const buf = await wb.xlsx.writeBuffer();
           const ymd = (quote.issueDate || todayISO()).replace(/-/g, "");
@@ -784,7 +793,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           return candidate;
         }
 
-        function renderCaseSheet(ws, c, stampImageId, stampPx) {
+        function renderCaseSheet(ws, c, stampImageIdTanto, stampImageIdJocho, stampPx) {
           // 結合セルでは shrinkToFit が効かないため、文字数からフォントサイズを動的計算
           function fitFont(text, totalColWidth, base, min) {
             if (!text) return base;
@@ -886,7 +895,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 7).value = affilText;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
-          ws.getRow(row).height = Math.max(affilText.split("\n").length * 18 + 12, 110);
+          ws.getRow(row).height = Math.max(affilText.split("\n").length * 20 + 16, 150);
           row++;
 
           // Row N+4: 導入メッセージ（下寄せ）+ 住所（label F + 値 G-H 複数行）
@@ -901,30 +910,27 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 7).value = OUR_COMPANY.address;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
-          ws.getRow(row).height = Math.max(OUR_COMPANY.address.split("\n").length * 18 + 12, 64);
+          ws.getRow(row).height = Math.max(OUR_COMPANY.address.split("\n").length * 20 + 16, 90);
           row++;
 
-          // 担当・上長 印枠ラベル（住所の下、cols 7・8）
-          ws.getCell(row, 7).value = "担当";
-          ws.getCell(row, 7).alignment = { horizontal: "center" };
-          ws.getCell(row, 7).font = { size: 9 };
-          ws.getCell(row, 8).value = "上長";
-          ws.getCell(row, 8).alignment = { horizontal: "center" };
-          ws.getCell(row, 8).font = { size: 9 };
+          // 印枠ラベル行（ラベルは画像内に描画済みなのでセルテキストは不要）
+          // ※ 行は確保するだけ（高さ既定）
           row++;
 
-          // 印枠画像（同一サイズ）
+          // 印枠画像（担当・上長、ラベル入り、同一サイズ）
           ws.getRow(row).height = 120;  // 100px stamp が確実に収まるよう余裕をもって 120pt
-          ws.addImage(stampImageId, {
+          ws.addImage(stampImageIdTanto, {
             tl: { col: 6, row: row - 1 },
             ext: { width: stampPx, height: stampPx },
           });
-          ws.addImage(stampImageId, {
+          ws.addImage(stampImageIdJocho, {
             tl: { col: 7, row: row - 1 },
             ext: { width: stampPx, height: stampPx },
           });
-          const metaBottomRow = row;  // F:H 自社情報ブロック終了行（印枠行）
-          row += 6;  // 印枠と初期費用テーブルの間に十分な空行を確保
+          const stampRow = row;
+          // ドットボーダーは F3:H12（印枠行 + 3 行下まで）
+          const metaBottomRow = stampRow + 3;
+          row = metaBottomRow + 3;  // 初期費用テーブルとの間に余裕
 
           // F:H の自社情報ブロックを点線で囲む
           const dotted = { style: "dotted", color: { argb: "FF666666" } };
