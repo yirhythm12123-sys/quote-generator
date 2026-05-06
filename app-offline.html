@@ -303,7 +303,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="case-actions">
           <button class="ghost small" @click="renameCase">案名変更</button>
           <button class="ghost small" @click="addCase">案を追加</button>
-          <button class="danger small" @click="removeCase" :disabled="quote.cases.length <= 1">案を削除</button>
+          <button v-if="quote.cases.length > 1" class="danger small" @click="removeCase">案を削除</button>
+          <button v-else class="danger small" @click="resetCase">案をリセット</button>
         </div>
       </div>
 
@@ -777,6 +778,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           if (!confirm(`「${activeCase.value.name}」を削除しますか？`)) return;
           quote.cases.splice(activeCaseIndex.value, 1);
           activeCaseIndex.value = Math.max(0, activeCaseIndex.value - 1);
+          // 残りの案を 案A, 案B, ... に自動繰り上げ
+          quote.cases.forEach((c, i) => {
+            c.name = `案${String.fromCharCode(65 + i)}`;
+          });
+        }
+        function resetCase() {
+          // 案が1件しかないときに「案を削除」の代わりに表示されるリセット用関数
+          // 共通情報 / 顧客 / 担当営業 はそのまま、案の中身のみ初期化
+          if (quote.cases.length !== 1) return;
+          if (!confirm("案の内容をすべてリセットしますか？\n（共通情報・顧客情報・担当営業情報は保持されます）")) return;
+          quote.cases[0].name = "案A";
+          quote.cases[0].lineItems = [newLineItem()];
+          activeCaseIndex.value = 0;
         }
         function renameCase() {
           const next = prompt("案名を入力", activeCase.value.name);
@@ -1215,7 +1229,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
           caseTotalsByFee, caseGrandTotal,
           summaryTotals, summaryItemsByFee, summarySubtotals, feeLabel, grossMarginPct,
-          fmt, addLine, removeLine, addCase, removeCase, renameCase, exportExcel,
+          fmt, addLine, removeLine, addCase, removeCase, resetCase, renameCase, exportExcel,
         };
       },
     }).mount("#app");
