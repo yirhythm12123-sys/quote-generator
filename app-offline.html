@@ -786,9 +786,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
 
         function renderCaseSheet(ws, c, stampImageId, stampPx) {
+          // 列幅は line item の最広コンテンツに合わせて余裕を持たせる
           ws.columns = [
-            { width: 6 }, { width: 28 }, { width: 10 }, { width: 8 }, { width: 14 },
-            { width: 8 }, { width: 14 }, { width: 14 },
+            { width: 6 }, { width: 32 }, { width: 8 }, { width: 8 }, { width: 14 },
+            { width: 14 }, { width: 16 }, { width: 16 },
           ];
           const COLS = 8;
           let row = 1;
@@ -819,24 +820,26 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 1).value = customerLine;
           ws.getCell(row, 1).font = { name: "游ゴシック", size: 14, bold: true };
           ws.getCell(row, 1).border = { bottom: { style: "thin" } };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
           ws.getCell(row, 6).value = "見積番号";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.quoteNumber;
           ws.getCell(row, 7).font = { size: 10 };
+          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
           row++;
 
           // 件名（左寄せ） + 発行日（右）
           ws.mergeCells(row, 1, row, 5);
           ws.getCell(row, 1).value = quote.projectName ? `件名: ${quote.projectName}` : "";
           ws.getCell(row, 1).font = { name: "游ゴシック", size: 12, bold: true };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
           ws.getCell(row, 6).value = "発行日";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.issueDate;
           ws.getCell(row, 7).font = { size: 10 };
+          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
           row++;
 
           // 有効期限（右のみ）
@@ -846,6 +849,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = quote.validUntil;
           ws.getCell(row, 7).font = { size: 10 };
+          ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle", shrinkToFit: true };
           row++;
 
           // 所属（label F + 会社名/部署を G-H に複数行）
@@ -936,15 +940,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 const cell = ws.getCell(row, i + 1);
                 cell.value = v;
                 cell.border = thinAll();
-                if (i === 0 || i === 2 || i === 3) cell.alignment = { horizontal: "center" };
-                if ((i === 4 || i === 5) && !txt) {
-                  cell.alignment = { horizontal: "right" };
-                  cell.numFmt = "#,##0";
+                const align = { vertical: "middle" };
+                if (i === 0 || i === 2 || i === 3) align.horizontal = "center";
+                else if (i === 1 || i === 6) { align.horizontal = "left"; align.wrapText = true; }
+                else if (i === 4 || i === 5) {
+                  align.horizontal = "right";
+                  if (!txt) cell.numFmt = "#,##0";
+                  else align.shrinkToFit = true;
                 }
-                if ((i === 4 || i === 5) && txt) {
-                  cell.alignment = { horizontal: "right" };
-                }
+                cell.alignment = align;
               });
+              // 品目や備考が長い場合に備えてやや高めの行高を確保
+              ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, 22);
               row++;
             });
             const subtotal = items.reduce((s, i) => s + effectiveCustomerPrice(i), 0);
@@ -1045,11 +1052,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 cell.value = v;
                 cell.border = thinAll();
                 cell.fill = sumFill;
-                if (i >= 1) {
-                  cell.alignment = { horizontal: "right" };
+                const align = { vertical: "middle" };
+                if (i === 0) { align.horizontal = "left"; align.wrapText = true; }
+                else {
+                  align.horizontal = "right";
                   if (!txt) cell.numFmt = "#,##0";
+                  else align.shrinkToFit = true;
                 }
+                cell.alignment = align;
               });
+              ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, 22);
               row++;
             }
 
