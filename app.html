@@ -359,7 +359,7 @@
                   <td class="num">{{ fmt(summaryTotals().planRequest) }}</td>
                   <td class="num">{{ fmt(summaryTotals().salesProfit) }}</td>
                   <td class="num">{{ fmt(summaryTotals().seAmount) }}</td>
-                  <td class="num">{{ fmt(summaryTotals().grossProfit) }}（粗利率 {{ grossMarginPct() }}%）</td>
+                  <td class="num">{{ fmt(summaryTotals().grossProfit) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -1046,18 +1046,6 @@
             }
           });
           row++;
-          const margin = grand.customer === 0 ? "0.0" : (grand.grossProfit / grand.customer * 100).toFixed(1);
-          ws.mergeCells(row, 1, row, 5);
-          const marginLabel = ws.getCell(row, 1);
-          marginLabel.value = "粗利率（粗利 ÷ 顧客出値）";
-          marginLabel.alignment = { horizontal: "right" };
-          marginLabel.font = { bold: true };
-          marginLabel.border = thinAll();
-          const marginVal = ws.getCell(row, 6);
-          marginVal.value = `${margin} %`;
-          marginVal.alignment = { horizontal: "right" };
-          marginVal.font = { bold: true };
-          marginVal.border = thinAll();
         }
 
         function thinAll() {
