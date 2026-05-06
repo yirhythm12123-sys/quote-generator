@@ -29,18 +29,31 @@
 <body>
   <h1>📥 見積書自動作成ツール</h1>
   <div class="card">
-    <p>下のボタンをタップして HTML ファイルをダウンロードしてください。</p>
-    <button id="dl">app.html をダウンロード</button>
+    <p>下のボタンを押して HTML ファイル(完全オフライン版・約1.1MB)をダウンロードしてください。</p>
+    <button id="dl">📥 見積書ツール.html をダウンロード</button>
     <div id="status"></div>
     <hr style="margin:18px 0; border:0; border-top:1px solid #ddd;">
-    <p style="margin:0 0 6px;"><strong>使い方</strong></p>
+
+    <p style="margin:0 0 6px;"><strong>💻 PCでの使い方</strong></p>
     <ol>
-      <li>上のボタンをタップ</li>
-      <li>「ダウンロード」を選択（Safari 上部のダウンロード▼ アイコンに表示）</li>
-      <li>「ファイル」アプリ → ダウンロード フォルダに <code>app.html</code></li>
-      <li>そのファイルをタップすると Safari で開いて使えます</li>
+      <li>上のボタンを押す → ダウンロードフォルダに <code>見積書ツール.html</code> が保存される</li>
+      <li>ファイルを<strong>ダブルクリック</strong> → 既定のブラウザ(Edge/Chrome/Firefox/Safari)で開く</li>
+      <li>そのまま見積書を作成、Excel出力ボタンで <code>.xlsx</code> ダウンロード</li>
     </ol>
-    <p class="muted">※ Vue/ExcelJS/FileSaver を内蔵済み。完全オフラインで動作します（約1.1MB）。</p>
+
+    <p style="margin:14px 0 6px;"><strong>📱 スマホ(iPhone Safari)の場合</strong></p>
+    <ol>
+      <li>ダウンロード後「ファイル」アプリ → ダウンロード フォルダに保存される</li>
+      <li>ファイルをタップ → Safariで開いて利用可能</li>
+    </ol>
+
+    <p style="margin:14px 0 6px;"><strong>📨 配布</strong></p>
+    <ul style="padding-left:1.4em; margin:0;">
+      <li>このHTMLファイル1つでアプリが完結。メール添付やTeams送信でそのまま配布可能</li>
+      <li>受信者は外部接続不要(Vue/ExcelJS/FileSaver 全て内蔵済)、ダブルクリックで起動</li>
+    </ul>
+
+    <p class="muted" style="margin-top:14px;">※ ファイル内にプリセット価格やTOPPAN自社情報が含まれます。配布範囲(社内のみ等)にご注意ください。</p>
   </div>
 
   <script>
