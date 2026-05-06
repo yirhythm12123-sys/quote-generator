@@ -31,6 +31,23 @@
     }
     .form-grid textarea { min-height: 60px; resize: vertical; }
     .form-grid .full { grid-column: 1 / -1; }
+    .sales-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 16px;
+    }
+    .sales-grid label { display: flex; flex-direction: column; font-size: 0.85rem; color: #555; }
+    .sales-grid input, .sales-grid select {
+      margin-top: 2px;
+      padding: 6px 8px;
+      font-size: 0.95rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-family: inherit;
+      height: 38px;
+      box-sizing: border-box;
+    }
+    .sales-grid .full { grid-column: 1 / -1; }
     .case-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #ddd; }
     .case-tab {
       padding: 6px 14px; background: #e8edf2; border: 1px solid #ccc;
@@ -110,7 +127,7 @@
       </div>
 
       <h3>担当営業情報</h3>
-      <div class="form-grid">
+      <div class="sales-grid">
         <label>会社名
           <select v-model="quote.salesCompany">
             <option value="TOPPAN株式会社">TOPPAN株式会社</option>
@@ -119,6 +136,7 @@
           </select>
         </label>
         <label>担当営業氏名<input type="text" v-model="quote.salesContact"></label>
+        <label>部署名<input type="text" v-model="quote.salesDepartment" placeholder="例: 情報ソリューションBU セキュアDX事業部 ..."></label>
         <label v-if="quote.salesCompany === 'other'" class="full">会社名(自由記入)<input type="text" v-model="quote.salesCompanyOther"></label>
       </div>
     </section>
@@ -435,6 +453,7 @@
           customer: { companyCode: "", company: "" },
           salesCompany: "TOPPAN株式会社",
           salesCompanyOther: "",
+          salesDepartment: "",
           salesContact: "",
           cases: [newCase("案A")],
         });
@@ -718,7 +737,8 @@
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
           ws.mergeCells(row, 7, row, 8);
           const _salesCo = (quote.salesCompany === "other" ? quote.salesCompanyOther : quote.salesCompany) || OUR_COMPANY.company;
-          const affilText = `${_salesCo}\n${OUR_COMPANY.department}`;
+          const _salesDept = quote.salesDepartment || OUR_COMPANY.department;
+          const affilText = `${_salesCo}\n${_salesDept}`;
           ws.getCell(row, 7).value = affilText;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
