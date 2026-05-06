@@ -832,6 +832,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const _affilParts = [_salesCo, _salesDept].filter(Boolean).join(" ");
           const addressee2 = _affilParts ? `所属：${_affilParts}` : "";
 
+          const metaTopRow = row;  // F:H 自社情報ブロック開始行
+
           // Row N: 宛名1行目 + 見積番号
           ws.mergeCells(row, 1, row, 5);
           ws.getCell(row, 1).value = addressee1;
@@ -917,7 +919,22 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             tl: { col: 7, row: row - 1 },
             ext: { width: stampPx, height: stampPx },
           });
+          const metaBottomRow = row;  // F:H 自社情報ブロック終了行（印枠行）
           row += 2;
+
+          // F:H の自社情報ブロックを点線で囲む
+          const dotted = { style: "dotted", color: { argb: "FF666666" } };
+          for (let r = metaTopRow; r <= metaBottomRow; r++) {
+            for (let c = 6; c <= 8; c++) {
+              const cell = ws.getCell(r, c);
+              const b = Object.assign({}, cell.border || {});
+              if (c === 6) b.left = dotted;
+              if (c === 8) b.right = dotted;
+              if (r === metaTopRow) b.top = dotted;
+              if (r === metaBottomRow) b.bottom = dotted;
+              cell.border = b;
+            }
+          }
 
           ws.mergeCells(row, 1, row, COLS);
           ws.getCell(row, 1).value = "下記の通りお見積申し上げます。";
