@@ -1188,13 +1188,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           row++;
 
           // 印枠画像（担当・上長、ラベル入り、同一サイズ）
+          // 列幅(備考列)を広げても担当印と上長印が離れないよう、
+          // 上長印は担当印の右隣に EMU 単位の絶対オフセットで固定配置する。
+          const PX_PER_EMU = 9525;
           ws.getRow(row).height = 120;  // 100px stamp が確実に収まるよう余裕をもって 120pt
           ws.addImage(stampImageIdTanto, {
             tl: { col: 6, row: row - 1 },
             ext: { width: stampPx, height: stampPx },
           });
           ws.addImage(stampImageIdJocho, {
-            tl: { col: 7, row: row - 1 },
+            tl: { col: 6, row: row - 1, nativeColOff: stampPx * PX_PER_EMU, nativeRowOff: 0 },
             ext: { width: stampPx, height: stampPx },
           });
           const stampRow = row;
