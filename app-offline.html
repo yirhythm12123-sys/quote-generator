@@ -95,16 +95,26 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     }
     .form-grid textarea { min-height: 60px; resize: vertical; }
     .form-grid .full { grid-column: 1 / -1; }
-    .sales-other-details summary {
-      cursor: pointer; color: #666; font-size: 0.85rem; padding: 6px 0;
-      list-style: none;
+    .sc-wrap { display: flex; flex-direction: column; font-size: 0.85rem; color: #555; }
+    .sc-mode-radio { position: absolute; left: -9999px; opacity: 0; pointer-events: none; }
+    .sc-tabs { display: flex; gap: 4px; margin: 4px 0; }
+    .sc-tab {
+      cursor: pointer; padding: 4px 12px; font-size: 0.8rem;
+      background: #eef2f6; border: 1px solid #c0c8d0; border-radius: 4px;
+      user-select: none;
     }
-    .sales-other-details[open] summary { color: #2c5d8f; }
-    .sales-other-details input {
-      width: 100%; box-sizing: border-box; margin-top: 4px;
-      padding: 6px 8px; font-size: 0.95rem;
-      border: 1px solid #ccc; border-radius: 3px; height: 38px;
+    #sc-preset-radio:checked ~ .sc-tabs label[for="sc-preset-radio"],
+    #sc-custom-radio:checked ~ .sc-tabs label[for="sc-custom-radio"] {
+      background: #2c5d8f; color: #fff; border-color: #2c5d8f;
     }
+    .sc-preset-input,
+    .sc-custom-input {
+      padding: 6px 8px; font-size: 0.95rem; border: 1px solid #ccc;
+      border-radius: 3px; font-family: inherit; height: 38px; box-sizing: border-box;
+    }
+    .sc-custom-input { display: none; }
+    #sc-custom-radio:checked ~ .sc-preset-input { display: none; }
+    #sc-custom-radio:checked ~ .sc-custom-input { display: block; }
     .sales-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -202,18 +212,22 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
       <h3>担当営業情報</h3>
       <div class="sales-grid">
-        <label>会社名
-          <select v-model="quote.salesCompany">
+        <div class="sc-wrap">
+          <span>会社名</span>
+          <input type="radio" name="sc-mode" id="sc-preset-radio" class="sc-mode-radio" checked>
+          <input type="radio" name="sc-mode" id="sc-custom-radio" class="sc-mode-radio">
+          <div class="sc-tabs">
+            <label for="sc-preset-radio" class="sc-tab">一覧から選択</label>
+            <label for="sc-custom-radio" class="sc-tab">自由記入</label>
+          </div>
+          <select class="sc-preset-input" v-model="quote.salesCompany">
             <option value="TOPPAN株式会社">TOPPAN株式会社</option>
             <option value="TOPPANクロレ株式会社">TOPPANクロレ株式会社</option>
           </select>
-        </label>
+          <input class="sc-custom-input" type="text" v-model="quote.salesCompanyOther" placeholder="会社名を入力">
+        </div>
         <label>担当営業氏名<input type="text" v-model="quote.salesContact"></label>
-        <details class="full sales-other-details">
-          <summary>▶ その他の会社名を入力（クリックで開く）</summary>
-          <input type="text" v-model="quote.salesCompanyOther" placeholder="会社名を入力（入力するとプルダウンより優先）">
-        </details>
-        <label>部署名<input type="text" v-model="quote.salesDepartment" placeholder="例: 情報ソリューションBU セキュアDX事業部 ..."></label>
+        <label class="full">部署名<input type="text" v-model="quote.salesDepartment" placeholder="例: 情報ソリューションBU セキュアDX事業部 ..."></label>
       </div>
     </section>
 
@@ -812,7 +826,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
           ws.mergeCells(row, 7, row, 8);
-          const _salesCo = (quote.salesCompanyOther && quote.salesCompanyOther.trim()) || quote.salesCompany || OUR_COMPANY.company;
+          const _customRadio = document.getElementById("sc-custom-radio");
+          const _isCustom = _customRadio && _customRadio.checked;
+          const _salesCo = (_isCustom ? quote.salesCompanyOther : quote.salesCompany) || OUR_COMPANY.company;
           const _salesDept = quote.salesDepartment || OUR_COMPANY.department;
           const affilText = `${_salesCo}\n${_salesDept}`;
           ws.getCell(row, 7).value = affilText;
