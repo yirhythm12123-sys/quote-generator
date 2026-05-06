@@ -13,6 +13,20 @@
       margin: 0; padding: 24px; background: #f4f6f8; color: #222;
     }
     h1 { font-size: 1.6rem; margin: 0 0 16px; }
+    .usage-guide {
+      background: #eef6ff; border: 1px solid #b6d4f0; border-radius: 6px;
+      padding: 12px 16px; margin-bottom: 16px;
+    }
+    .usage-guide summary { cursor: pointer; font-weight: bold; color: #1b4f7a; font-size: 1rem; }
+    .usage-guide[open] summary { margin-bottom: 8px; }
+    .usage-guide .guide-body { font-size: 0.9rem; line-height: 1.7; color: #333; }
+    .usage-guide ol { padding-left: 1.4em; margin: 4px 0; }
+    .usage-guide ul { padding-left: 1.4em; margin: 4px 0 4px; }
+    .usage-guide li { margin-bottom: 4px; }
+    .usage-guide .guide-note {
+      margin: 8px 0 0; padding: 6px 10px;
+      background: #fff3cd; border-left: 3px solid #ffc107; font-size: 0.85rem;
+    }
     h2 { font-size: 1.2rem; margin: 24px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #2c5d8f; }
     h3 { font-size: 1rem; margin: 16px 0 6px; color: #2c5d8f; }
     .app { max-width: 1400px; margin: 0 auto; }
@@ -151,6 +165,31 @@
   <div id="app" class="app" v-cloak>
     <h1>見積書自動作成ツール</h1>
 
+    <details class="usage-guide" open>
+      <summary>📖 使い方ガイド（クリックで開閉）</summary>
+      <div class="guide-body">
+        <ol>
+          <li><strong>共通情報</strong>を入力：案件名、発行日、有効期限</li>
+          <li><strong>顧客情報</strong>を入力：発行会社コード（半角7桁）と会社名</li>
+          <li><strong>担当営業情報</strong>を入力：自社の選択（TOPPAN/TOPPANクロレ/その他）、氏名、部署名</li>
+          <li><strong>案</strong>セクションで明細を入力：
+            <ul>
+              <li>費用区分（初期 / 月額基本 / 月額従量 / 都度）を選択</li>
+              <li>品目はプリセット（POS接続方式など）か自由記入</li>
+              <li>出元（部 / SE）と利益モードを選択（プリセット選択時は自動セット）</li>
+              <li>出値単価を入力（カンマは入力不要、フォーカスを外すと自動付与）</li>
+              <li>顧客出値が端数のとき、加算プルダウンで +1,000〜+9,000 円を上乗せ可能</li>
+              <li>備考も自由記入可</li>
+            </ul>
+          </li>
+          <li>必要に応じて <strong>「案を追加」</strong> で複数案を並行作成（Excelシート別）</li>
+          <li><strong>内部用サマリ</strong>で顧客出値・企画依頼金額・営業利益・SE出値・粗利を確認</li>
+          <li>右下の <strong>「Excel出力」</strong> ボタンで見積書をダウンロード（ファイル名は自動命名）</li>
+        </ol>
+        <p class="guide-note">※ 出力ファイルには社外秘の内部用サマリも含まれます。顧客送付前に該当箇所を削除してください。</p>
+      </div>
+    </details>
+
     <section class="card">
       <h2>共通情報</h2>
       <div class="form-grid">
@@ -161,7 +200,12 @@
 
       <h3>顧客情報</h3>
       <div class="form-grid">
-        <label>発行会社コード<input type="text" v-model="quote.customer.companyCode" placeholder="例: ABC123"></label>
+        <label>発行会社コード（半角数字7桁）
+          <input type="text" v-model="quote.customer.companyCode"
+                 placeholder="例: 7130001" maxlength="7" inputmode="numeric"
+                 pattern="[0-9]{7}" title="半角数字7桁で入力してください"
+                 @input="quote.customer.companyCode = quote.customer.companyCode.replace(/[^0-9]/g, '').slice(0, 7)">
+        </label>
         <label>会社名<input type="text" v-model="quote.customer.company"></label>
       </div>
 
@@ -823,7 +867,7 @@
           ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(projVal, 68, 13, 9), bold: true };
           ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
           ws.getCell(row, 6).value = "所属";
-          ws.getCell(row, 6).font = { size: 9, bold: true };
+          ws.getCell(row, 6).font = { size: 9 };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
           ws.mergeCells(row, 7, row, 8);
           // 所属は自社（TOPPAN）固定。担当営業の入力は上の宛名行で使用するため、ここでは上書きしない。
@@ -840,7 +884,7 @@
           ws.getCell(row, 1).font = { name: "游ゴシック", size: 13, bold: true };
           ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "bottom", wrapText: true };
           ws.getCell(row, 6).value = "住所";
-          ws.getCell(row, 6).font = { size: 9, bold: true };
+          ws.getCell(row, 6).font = { size: 9 };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
           ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).value = OUR_COMPANY.address;
