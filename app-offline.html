@@ -435,16 +435,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 <span v-if="isTextItem(item)">{{ item.priceText }}</span>
                 <span v-else>{{ fmt(calcLineTotal(item)) }}</span>
               </td>
-              <td :class="{ calc: !isTextItem(item) && calcLineTotal(item) % 1000 === 0 }">
+              <td :class="{ calc: !isTextItem(item) && (item.noRounding || calcLineTotal(item) % 1000 === 0) }">
                 <div v-if="isTextItem(item)" style="text-align:center; color:#888;">{{ item.priceText }}</div>
                 <div v-else class="price-control">
                   <input type="text" inputmode="numeric"
                          :value="fmt(effectiveCustomerPrice(item))"
-                         :disabled="calcLineTotal(item) % 1000 === 0"
+                         :disabled="item.noRounding || calcLineTotal(item) % 1000 === 0"
                          @change="setCustomerPrice(item, $event.target.value)"
                          class="num">
                   <select class="bump"
-                          :disabled="calcLineTotal(item) % 1000 === 0"
+                          :disabled="item.noRounding || calcLineTotal(item) % 1000 === 0"
                           @change="onBumpSelect(item, $event)">
                     <option value="0">加算...</option>
                     <option v-for="n in bumpAmounts" :key="n" :value="n">+{{ n.toLocaleString() }}</option>
@@ -612,6 +612,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         { name: "ネットワーク課金", profit: "none" },
         { name: "デジタルギフト発行費用",                          price: 10,    profit: "none",
           unit: "円/ID",
+          noRounding: true,
           note: "ID1万件/月を超えてIDを発行する場合のみ10円/ID発生" },
         { name: "決済アプリ連携トランザクション処理料金",          price: 30000, profit: "none",
           unit: "月",
@@ -620,9 +621,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       spot: [],
     };
     const DEFAULT_UNITS = { initial: "式", monthly_base: "月", monthly_meter: "月", spot: "式" };
-    // 初期+月額基本+月額従量 でセット販売される品目の組合せ。
-    // どれか1つのプリセットが選ばれたら、残り2つを自動で行追加する。
+    // 初期+月額基本+月額従量 / 初期+月額基本 等のセット販売される品目の組合せ。
+    // どれか1つのプリセットが選ばれたら、他のメンバを自動で行追加する。
     const PRESET_SETS = [
+      // === 3 区分セット ===
       {
         name: "デジタルギフト",
         initial:       "デジタルギフト導入費",
@@ -635,6 +637,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         monthly_base:  "決済アプリ連携基本利用料",
         monthly_meter: "決済アプリ連携トランザクション処理料金",
       },
+      // === 2 区分セット (初期 + 月額基本) ===
+      { name: "POS接続方式(Value'Sネット)",
+        initial: "POS接続方式(Value'Sネット)",         monthly_base: "POS接続方式(Value'Sネット)" },
+      { name: "POS接続方式(専用線)",
+        initial: "POS接続方式(専用線)",                 monthly_base: "POS接続方式(専用線)" },
+      { name: "POS接続方式(クレジットネットワーク)",
+        initial: "POS接続方式(クレジットネットワーク)", monthly_base: "POS接続方式(クレジットネットワーク)" },
+      { name: "専用端末接続方式",
+        initial: "専用端末接続方式",                    monthly_base: "専用端末接続方式" },
+      { name: "Web接続方式",
+        initial: "Web接続方式",                         monthly_base: "Web接続方式" },
+      { name: "PC決済画面方式",
+        initial: "PC決済画面方式",                      monthly_base: "PC決済画面方式" },
     ];
     function findPresetSet(feeType, presetName) {
       return PRESET_SETS.find(s => s[feeType] === presetName);
@@ -678,7 +693,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       return { name: "", source: "部", feeType: "initial", profitMode: "sales",
                quantity: 1, unit: "式", unitOfferPrice: 0,
                priceText: "", customerPrice: null, note: "",
-               preset: "", meterAdjustPct: 0 };
+               preset: "", meterAdjustPct: 0, noRounding: false };
     }
     function isTextItem(item) {
       return item.feeType === "monthly_meter" && (item.priceText || "").trim() !== "";
@@ -734,6 +749,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           item.priceText = "";
           item.customerPrice = null;
           item.meterAdjustPct = 0;
+          item.noRounding = false;
           // unit/note を費用区分の既定値にリセット
           item.unit = DEFAULT_UNITS[item.feeType] || "式";
           item.note = (item.feeType === "monthly_base") ? "月の基本利用料金" : "";
@@ -751,6 +767,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           }
           if (p.unit !== undefined) item.unit = p.unit;
           if (p.note !== undefined) item.note = p.note;
+          if (p.noRounding !== undefined) item.noRounding = p.noRounding;
           if (p.isMeter) {
             item.priceText = meterText(0);
           }
@@ -803,6 +820,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
         function effectiveCustomerPrice(item) {
           const auto = calcLineTotal(item);
+          // 単価固定プリセット (例: 10円/ID) は千円切上げをしない
+          if (item.noRounding) return auto;
           if (auto % 1000 === 0) return auto;
           if (item.customerPrice != null && Number.isFinite(item.customerPrice) && item.customerPrice >= auto) {
             return item.customerPrice;
