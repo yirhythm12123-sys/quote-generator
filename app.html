@@ -39,7 +39,7 @@
     .case-tab.active { background: #fff; font-weight: bold; color: #2c5d8f; }
     .case-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
     .lines-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
-    table.lines { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 0.85rem; }
+    table.lines { width: 100%; min-width: 1300px; border-collapse: collapse; font-size: 0.85rem; }
     table.lines th, table.lines td { border: 1px solid #d0d0d0; padding: 4px 6px; vertical-align: middle; }
     table.lines th { background: #eef2f6; font-weight: 600; text-align: center; white-space: nowrap; }
     table.lines td input, table.lines td select {
@@ -99,7 +99,6 @@
       <h2>共通情報</h2>
       <div class="form-grid">
         <label class="full">案件名<input type="text" v-model="quote.projectName" placeholder="例: ○○ ハウスプリペイドシステム導入"></label>
-        <label>見積番号<input type="text" v-model="quote.quoteNumber" placeholder="例: Q-2026-0001"></label>
         <label>発行日<input type="date" v-model="quote.issueDate"></label>
         <label>有効期限<input type="date" v-model="quote.validUntil"></label>
       </div>
@@ -112,7 +111,15 @@
 
       <h3>担当営業情報</h3>
       <div class="form-grid">
+        <label>会社名
+          <select v-model="quote.salesCompany">
+            <option value="TOPPAN株式会社">TOPPAN株式会社</option>
+            <option value="TOPPANクロレ株式会社">TOPPANクロレ株式会社</option>
+            <option value="other">その他(自由記入)</option>
+          </select>
+        </label>
         <label>担当営業氏名<input type="text" v-model="quote.salesContact"></label>
+        <label v-if="quote.salesCompany === 'other'" class="full">会社名(自由記入)<input type="text" v-model="quote.salesCompanyOther"></label>
       </div>
     </section>
 
@@ -135,11 +142,17 @@
         <table class="lines">
           <thead>
             <tr>
-              <th>費用区分</th>
+              <th style="min-width:90px">費用区分</th>
               <th style="min-width:200px">品目名</th>
-              <th>数量</th><th>単位</th><th>出値単価</th>
-              <th>出元</th><th>利益モード</th>
-              <th>自動計算額</th><th>顧客出値</th><th>備考</th><th></th>
+              <th style="min-width:60px">数量</th>
+              <th style="min-width:60px">単位</th>
+              <th style="min-width:120px">出値単価</th>
+              <th style="min-width:80px">出元</th>
+              <th style="min-width:160px">利益モード</th>
+              <th style="min-width:110px">自動計算額</th>
+              <th style="min-width:140px">顧客出値</th>
+              <th style="min-width:140px">備考</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -420,6 +433,8 @@
           issueDate: todayISO(),
           validUntil: "",
           customer: { companyCode: "", company: "" },
+          salesCompany: "TOPPAN株式会社",
+          salesCompanyOther: "",
           salesContact: "",
           cases: [newCase("案A")],
         });
@@ -702,7 +717,8 @@
           ws.getCell(row, 6).font = { size: 9, bold: true };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
           ws.mergeCells(row, 7, row, 8);
-          const affilText = `${OUR_COMPANY.company}\n${OUR_COMPANY.department}`;
+          const _salesCo = (quote.salesCompany === "other" ? quote.salesCompanyOther : quote.salesCompany) || OUR_COMPANY.company;
+          const affilText = `${_salesCo}\n${OUR_COMPANY.department}`;
           ws.getCell(row, 7).value = affilText;
           ws.getCell(row, 7).font = { size: 9 };
           ws.getCell(row, 7).alignment = { wrapText: true, vertical: "top", horizontal: "left" };
