@@ -40,11 +40,11 @@
       <li>「ファイル」アプリ → ダウンロード フォルダに <code>app.html</code></li>
       <li>そのファイルをタップすると Safari で開いて使えます</li>
     </ol>
-    <p class="muted">※ 起動時にネット接続が必要（Vue/ExcelJS/FileSaver を CDN から読込）</p>
+    <p class="muted">※ Vue/ExcelJS/FileSaver を内蔵済み。完全オフラインで動作します（約1.1MB）。</p>
   </div>
 
   <script>
-    const SRC_URL = "https://rawcdn.githack.com/yirhythm12123-sys/quote-generator/main/app.html";
+    const SRC_URL = "https://rawcdn.githack.com/yirhythm12123-sys/quote-generator/main/app-offline.html";
     const FILENAME = "見積書ツール.html";
     const btn = document.getElementById("dl");
     const status = document.getElementById("status");
