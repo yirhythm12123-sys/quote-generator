@@ -336,8 +336,15 @@
               <td><input type="number" min="0" step="1" v-model.number="item.quantity" class="num"></td>
               <td><input type="text" v-model="item.unit" style="width:60px"></td>
               <td>
+                <input type="text" inputmode="numeric"
+                       v-model="item.unitOfferPrice"
+                       @change="item.unitOfferPrice = fmt(asNum(item.unitOfferPrice))"
+                       @blur="item.unitOfferPrice = fmt(asNum(item.unitOfferPrice))"
+                       @focus="item.unitOfferPrice = String(asNum(item.unitOfferPrice))"
+                       class="num"
+                       :placeholder="item.feeType === 'monthly_meter' ? '数値' : ''">
                 <template v-if="item.feeType === 'monthly_meter'">
-                  <input type="text" v-model="item.priceText" placeholder="例: 売上の3%">
+                  <input type="text" v-model="item.priceText" placeholder="または文章記述（記述するとこちら優先）">
                   <select v-if="item.preset === '月の従量料金'"
                           :value="item.meterAdjustPct"
                           @change="onMeterAdjustSelect(item, $event)" class="bump">
@@ -347,12 +354,6 @@
                     <option value="reset">元に戻す</option>
                   </select>
                 </template>
-                <input v-else type="text" inputmode="numeric"
-                       v-model="item.unitOfferPrice"
-                       @change="item.unitOfferPrice = fmt(asNum(item.unitOfferPrice))"
-                       @blur="item.unitOfferPrice = fmt(asNum(item.unitOfferPrice))"
-                       @focus="item.unitOfferPrice = String(asNum(item.unitOfferPrice))"
-                       class="num">
               </td>
               <td>
                 <select v-model="item.source" @change="onSourceFeeChange(item)">
@@ -387,7 +388,7 @@
                   </select>
                 </div>
               </td>
-              <td><input type="text" v-model="item.note"></td>
+              <td><textarea v-model="item.note" rows="2" style="width:100%; resize:vertical; font-size:0.8rem;"></textarea></td>
               <td><button class="danger small" @click="removeLine(i)">削除</button></td>
             </tr>
           </tbody>
@@ -521,7 +522,12 @@
         { name: "同時導入ギフトカードモール",         price: 600000,  profit: "none" },
         { name: "クレジットチャージ",                 price: 50000,   profit: "none" },
         { name: "オートチャージ",                     price: 400000,  profit: "none" },
-        { name: "デジタルギフト導入費",               profit: "none" },
+        { name: "デジタルギフト導入費",               price: 400000,  profit: "none",
+          unit: "式",
+          note: "オプション機能「デジタルギフト」の導入にかかる初期費用" },
+        { name: "決済アプリ連携導入費",               price: 800000,  profit: "none",
+          unit: "式",
+          note: "オプション機能「決済アプリ連携」の導入にかかる初期費用\nワンタイムバーコード取得用のAPI提供" },
       ],
       monthly_base: [
         { name: "POS接続方式(Value'Sネット)",        price: 120000, profit: "none" },
@@ -530,10 +536,22 @@
         { name: "専用端末接続方式",                   price: 120000, profit: "none" },
         { name: "Web接続方式",                        price: 120000, profit: "none" },
         { name: "PC決済画面方式",                     price: 120000, profit: "none" },
+        { name: "デジタルギフト基本利用料",           price: 50000,  profit: "none",
+          unit: "月",
+          note: "オプション機能「デジタルギフト」の月の基本利用料\nID1万件/月の発行分を含む金額" },
+        { name: "決済アプリ連携基本利用料",           price: 30000,  profit: "none",
+          unit: "月",
+          note: "10万件/月のトランザクション処理量を含む金額" },
       ],
       monthly_meter: [
         { name: "月の従量料金",   profit: "none", isMeter: true },
         { name: "ネットワーク課金", profit: "none" },
+        { name: "デジタルギフト発行費用",                          price: 10,    profit: "none",
+          unit: "円/ID",
+          note: "ID1万件/月を超えてIDを発行する場合のみ10円/ID発生" },
+        { name: "決済アプリ連携トランザクション処理料金",          price: 30000, profit: "none",
+          unit: "月",
+          note: "月額基本料金に含む10万件/月を超える場合に発生\n\nトランザクション量に応じてトランザクション処理料金が変動します\nトランザクション量〜10万件 … トランザクション処理料金        0円\nトランザクション量10万1件〜… トランザクション処理料金 30,000円\nトランザクション量20万1件〜… トランザクション処理料金 60,000円\nトランザクション量30万1件〜… トランザクション処理料金 90,000円\n              ・\n              ・\n              ・" },
       ],
       spot: [],
     };
@@ -633,6 +651,9 @@
           item.priceText = "";
           item.customerPrice = null;
           item.meterAdjustPct = 0;
+          // unit/note を費用区分の既定値にリセット
+          item.unit = DEFAULT_UNITS[item.feeType] || "式";
+          item.note = (item.feeType === "monthly_base") ? "月の基本利用料金" : "";
           if (!item.preset) {
             // 自由記入モード — 完全空欄にしてユーザー入力を待つ
             return;
@@ -645,6 +666,8 @@
           if (p.price !== undefined) {
             item.unitOfferPrice = fmt(p.price);
           }
+          if (p.unit !== undefined) item.unit = p.unit;
+          if (p.note !== undefined) item.note = p.note;
           if (p.isMeter) {
             item.priceText = meterText(0);
           }
