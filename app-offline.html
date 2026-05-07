@@ -1082,7 +1082,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           // (col 3/4 はサマリの企画依頼金額・営業利益にも使われる)
           ws.columns = [
             { width: 6 }, { width: 28 }, { width: 14 }, { width: 14 }, { width: 14 },
-            { width: 14 }, { width: 26 }, { width: 14 },
+            { width: 14 }, { width: 30 }, { width: 14 },
           ];
           const COLS = 8;
           let row = 1;
@@ -1271,8 +1271,23 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 }
                 cell.alignment = align;
               });
-              // 備考の行数に応じて行高を確保 (7pt × 行数 + 余白)
-              const noteLines = (item.note || "").split("\n").length;
+              // 備考の wrap 後行数を見積もって行高を確保 (7pt 行 ≈ 10pt + 余白)
+              // 備考列幅 26 (col idx 7) で 7pt 全角 ≈ 18 文字/行 で wrap すると仮定
+              const noteText = item.note || "";
+              const NOTE_CHARS_PER_LINE = 20;  // 7pt 全角換算で 1 行に収まる目安 (備考列幅 30)
+              const visualLineCount = (txt) => {
+                if (!txt) return 0;
+                let n = 0;
+                for (const seg of txt.split("\n")) {
+                  let visualLen = 0;
+                  for (const ch of seg) {
+                    visualLen += /[ -~]/.test(ch) ? 1 : 2;  // 全角=2, 半角=1
+                  }
+                  n += Math.max(1, Math.ceil(visualLen / (NOTE_CHARS_PER_LINE * 2)));
+                }
+                return n;
+              };
+              const noteLines = visualLineCount(noteText);
               const minHeightForNote = Math.max(22, noteLines * 10 + 4);
               ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, minHeightForNote);
               row++;
@@ -1317,7 +1332,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
           row += 1;
           const summaryStartRow = row;  // 印刷可能範囲の終端を計算するために保持
-          ws.mergeCells(row, 1, row, 6);  // A:F のみ塗りつぶし範囲（G/H は対象外）
+          // サマリ全体を 1 列右にずらす: 品目 = A:B 結合、C-G に 5 指標
+          ws.mergeCells(row, 1, row, 7);  // A:G のみ塗りつぶし範囲（H は対象外）
           const sumTitle = ws.getCell(row, 1);
           sumTitle.value = "【内部用サマリ】 ※社外秘";
           sumTitle.font = { bold: true, size: 12, color: { argb: "FFCC4444" } };
@@ -1328,29 +1344,63 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const subtotalFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7E6D4" } };
           const grand = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 };
 
+          // サマリの 品目 セルを A:B 結合 + 数値セルを C-G に書き込む共通処理
+          const writeSummaryRow = (label, metrics, opts) => {
+            // metrics: [customer, planRequest, salesProfit, seAmount, grossProfit] (5要素)
+            ws.mergeCells(row, 1, row, 2);
+            const nameCell = ws.getCell(row, 1);
+            nameCell.value = label;
+            nameCell.border = thinAll();
+            nameCell.fill = opts.fill;
+            if (opts.bold) nameCell.font = { bold: true, size: 9 };
+            else nameCell.font = { size: 9 };
+            nameCell.alignment = { vertical: "middle", horizontal: "left", wrapText: true, shrinkToFit: !opts.bold };
+            // B セルにも border/fill を反映 (結合先)
+            const bCell = ws.getCell(row, 2);
+            bCell.border = thinAll();
+            bCell.fill = opts.fill;
+            for (let k = 0; k < 5; k++) {
+              const cell = ws.getCell(row, 3 + k);
+              cell.value = metrics[k];
+              cell.border = thinAll();
+              cell.fill = opts.fill;
+              if (opts.bold) cell.font = { bold: true };
+              const align = { vertical: "middle", horizontal: "right" };
+              if (typeof metrics[k] === "number") cell.numFmt = "#,##0";
+              else if (opts.shrinkText) align.shrinkToFit = true;
+              cell.alignment = align;
+            }
+          };
+
           for (const group of FEE_GROUPS) {
             const items = c.lineItems.filter(i => feeGroupOf(i.feeType) === group);
             if (items.length === 0) continue;
 
-            // 区分見出し（A:F のみ）
-            ws.mergeCells(row, 1, row, 6);
+            // 区分見出し（A:G のみ）
+            ws.mergeCells(row, 1, row, 7);
             const sectionLabel = ws.getCell(row, 1);
             sectionLabel.value = `【${FEE_GROUP_LABELS[group]}】`;
             sectionLabel.font = { bold: true, color: { argb: "FFCC4444" } };
             sectionLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF6E8" } };
             row++;
 
-            // テーブルヘッダ
-            const sumHeaders = ["品目", "顧客出値", "企画依頼金額", "営業利益", "SE出値", "粗利", "", ""];
-            sumHeaders.forEach((v, idx) => {
-              const cell = ws.getCell(row, idx + 1);
+            // テーブルヘッダ (品目=A:B 結合, 5指標=C:G)
+            ws.mergeCells(row, 1, row, 2);
+            const nameHdr = ws.getCell(row, 1);
+            nameHdr.value = "品目";
+            nameHdr.font = { bold: true };
+            nameHdr.alignment = { horizontal: "center" };
+            nameHdr.fill = subtotalFill;
+            nameHdr.border = thinAll();
+            ws.getCell(row, 2).border = thinAll();
+            ws.getCell(row, 2).fill = subtotalFill;
+            ["顧客出値", "企画依頼金額", "営業利益", "SE出値", "粗利"].forEach((v, idx) => {
+              const cell = ws.getCell(row, 3 + idx);
               cell.value = v;
-              if (v) {
-                cell.font = { bold: true };
-                cell.alignment = { horizontal: "center" };
-                cell.fill = subtotalFill;
-                cell.border = thinAll();
-              }
+              cell.font = { bold: true };
+              cell.alignment = { horizontal: "center" };
+              cell.fill = subtotalFill;
+              cell.border = thinAll();
             });
             row++;
 
@@ -1368,56 +1418,28 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 grand.customer += cp; grand.planRequest += pr; grand.salesProfit += sp; grand.seAmount += se; grand.grossProfit += gp;
               }
               const nameDisp = (item.name || "(無題)") + (item.feeType === "monthly_meter" ? "（従量）" : "");
-              const vals = txt
-                ? [nameDisp, item.priceText, "-", "-", "-", "-"]
-                : [nameDisp, cp, pr, sp, se, gp];
-              vals.forEach((v, i) => {
-                const cell = ws.getCell(row, i + 1);
-                cell.value = v;
-                cell.border = thinAll();
-                cell.fill = sumFill;
-                const align = { vertical: "middle" };
-                if (i === 0) { align.horizontal = "left"; align.wrapText = true; }
-                else {
-                  align.horizontal = "right";
-                  if (!txt) cell.numFmt = "#,##0";
-                  else align.shrinkToFit = true;
-                }
-                cell.alignment = align;
-              });
+              const metrics = txt ? [item.priceText, "-", "-", "-", "-"] : [cp, pr, sp, se, gp];
+              writeSummaryRow(nameDisp, metrics, { fill: sumFill, bold: false, shrinkText: txt });
               ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, 22);
               row++;
             }
 
             // 区分小計
-            const subVals = [`${FEE_GROUP_LABELS[group]} 小計`, sub.customer, sub.planRequest, sub.salesProfit, sub.seAmount, sub.grossProfit];
-            subVals.forEach((v, i) => {
-              const cell = ws.getCell(row, i + 1);
-              cell.value = v;
-              cell.border = thinAll();
-              cell.font = { bold: true };
-              cell.fill = subtotalFill;
-              if (i >= 1) {
-                cell.alignment = { horizontal: "right" };
-                cell.numFmt = "#,##0";
-              }
-            });
+            writeSummaryRow(
+              `${FEE_GROUP_LABELS[group]} 小計`,
+              [sub.customer, sub.planRequest, sub.salesProfit, sub.seAmount, sub.grossProfit],
+              { fill: subtotalFill, bold: true }
+            );
             row += 2;
           }
 
           // 案 総合計
-          const totVals = ["案 総合計", grand.customer, grand.planRequest, grand.salesProfit, grand.seAmount, grand.grossProfit];
-          totVals.forEach((v, i) => {
-            const cell = ws.getCell(row, i + 1);
-            cell.value = v;
-            cell.border = thinAll();
-            cell.font = { bold: true };
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE0B2" } };
-            if (i >= 1) {
-              cell.alignment = { horizontal: "right" };
-              cell.numFmt = "#,##0";
-            }
-          });
+          const totalFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE0B2" } };
+          writeSummaryRow(
+            "案 総合計",
+            [grand.customer, grand.planRequest, grand.salesProfit, grand.seAmount, grand.grossProfit],
+            { fill: totalFill, bold: true }
+          );
           row++;
 
           // 印刷可能範囲: A1 から 内部用サマリ の 2 行上まで（横は H 列）
