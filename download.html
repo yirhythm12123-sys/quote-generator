@@ -24,6 +24,7 @@
     ol { padding-left: 1.4em; }
     ol li { margin-bottom: 6px; line-height: 1.6; }
     .muted { color: #666; font-size: 0.85rem; }
+    .tip { background: #fff8e1; border-left: 3px solid #f5b400; padding: 10px 12px; margin: 12px 0; font-size: 0.88rem; color: #5a4400; border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -41,6 +42,12 @@
       <li>そのまま見積書を作成、Excel出力ボタンで <code>.xlsx</code> ダウンロード</li>
     </ol>
 
+    <div class="tip">
+      <strong>⚠️ Edgeで「.tmp」ファイルが見える場合</strong><br>
+      ダウンロード中は Edge の SmartScreen が一時的に <code>{GUID}.tmp</code> を作ります。スキャン完了で自動的に <code>見積書ツール.html</code> にリネームされます。<br>
+      もし <code>.tmp</code> が残ってしまう場合は、<strong>もう一度ボタンを押してダウンロードし直してください</strong>。残った <code>.tmp</code> はそのまま削除して構いません。
+    </div>
+
     <p style="margin:14px 0 6px;"><strong>📱 スマホ(iPhone Safari)の場合</strong></p>
     <ol>
       <li>ダウンロード後「ファイル」アプリ → ダウンロード フォルダに保存される</li>
@@ -56,7 +63,6 @@
     <p class="muted" style="margin-top:14px;">※ ファイル内にプリセット価格やTOPPAN自社情報が含まれます。配布範囲(社内のみ等)にご注意ください。</p>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <script>
     // raw.githack の CDN キャッシュを避けるため GitHub 直 URL から取得
     const SRC_URL = "https://raw.githubusercontent.com/yirhythm12123-sys/quote-generator/main/app-offline.html?_=" + Date.now();
@@ -70,24 +76,21 @@
       try {
         const res = await fetch(SRC_URL, { cache: "no-cache" });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        const blob = await res.blob();
-        // text/html だと Edge 等で .tmp として保存されることがあるため
-        // application/octet-stream + FileSaver で確実にダウンロードに誘導
-        const dlBlob = new Blob([blob], { type: "application/octet-stream" });
-        if (typeof saveAs === "function") {
-          saveAs(dlBlob, FILENAME);
-        } else {
-          const url = URL.createObjectURL(dlBlob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = FILENAME;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }
+        const text = await res.text();
+        // text/html で Blob 作成 (ダブルクリックで HTML として開けるように)
+        // FileSaver は使わず、a要素 + download 属性で素直にダウンロード誘導
+        const blob = new Blob([text], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = FILENAME;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
         status.className = "status ok";
-        status.textContent = "✅ ダウンロード開始しました。ダウンロードフォルダを確認してください。";
+        status.textContent = "✅ ダウンロード開始しました。ダウンロードフォルダで「見積書ツール.html」を確認してください。";
       } catch (e) {
         status.className = "status err";
         status.textContent = "❌ 失敗: " + e.message;
