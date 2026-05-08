@@ -210,6 +210,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     }
     table.lines td.line-drag-handle:active { cursor: grabbing; }
     table.lines td.line-drag-handle:hover { background: #eef2f6; color: #2c5d8f; }
+    /* 備考 textarea: 等幅フォントでスペース揃えを崩さない */
+    textarea.note-cell-textarea {
+      font-family: 'ＭＳ ゴシック', 'MS Gothic', Consolas, 'Courier New', monospace;
+      font-size: 0.8rem;
+      min-height: 24px;
+      resize: none;
+      overflow: hidden;
+    }
     table.lines th { background: #eef2f6; font-weight: 600; text-align: center; white-space: nowrap; }
     table.lines td input, table.lines td select {
       width: 100%; border: 1px solid transparent; padding: 3px 4px;
@@ -484,8 +492,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                   </select>
                 </div>
               </td>
-              <td><textarea v-model="item.note" v-note-autoheight rows="1"
-                  :style="{ width: noteUniformWidthPx + 'px', resize: 'none', fontSize: '0.8rem', minHeight: '24px', overflow: 'hidden' }"></textarea></td>
+              <td><textarea v-model="item.note" v-note-autoheight rows="1" class="note-cell-textarea"
+                  :style="{ width: noteUniformWidthPx + 'px' }"></textarea></td>
               <td><button class="danger small" @click="removeLine(i)">削除</button></td>
             </tr>
           </tbody>
@@ -669,7 +677,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           note: "ID1万件/月を超えてIDを発行する場合のみ10円/ID発生" },
         { name: "決済アプリ連携トランザクション処理料金",          price: 30000, profit: "none",
           unit: "月",
-          note: "月額基本料金に含む10万件/月を超える場合に発生\n\nトランザクション量に応じてトランザクション処理料金が変動します\nトランザクション量〜10万件 … トランザクション処理料金        0円\nトランザクション量10万1件〜… トランザクション処理料金 30,000円\nトランザクション量20万1件〜… トランザクション処理料金 60,000円\nトランザクション量30万1件〜… トランザクション処理料金 90,000円\n              ・\n              ・\n              ・" },
+          note: "月額基本料金に含む10万件/月を超える場合に発生\n\nトランザクション量に応じてトランザクション処理料金が変動します\nトランザクション量〜10万件 … トランザクション処理料金      0円\nトランザクション量10万1件〜… トランザクション処理料金 30,000円\nトランザクション量20万1件〜… トランザクション処理料金 60,000円\nトランザクション量30万1件〜… トランザクション処理料金 90,000円\n              ・\n              ・\n              ・" },
       ],
       spot: [],
     };
@@ -782,7 +790,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     // 備考の "最長行ピクセル幅" を算出するためのキャンバス計測ヘルパ
     // textarea CSS と概ね一致するフォントを指定 (font-size:0.8rem ≒ 12.8px / 游ゴシック系)
-    const _NOTE_MEASURE_FONT = '12.8px "Yu Gothic", "游ゴシック", "Hiragino Sans", "Meiryo", sans-serif';
+    // textarea の class .note-cell-textarea と同じ等幅フォントで計測する
+    const _NOTE_MEASURE_FONT = "12.8px 'ＭＳ ゴシック', 'MS Gothic', Consolas, 'Courier New', monospace";
     const _noteCanvas = document.createElement("canvas");
     const _noteCtx = _noteCanvas.getContext("2d");
     function maxLinePixelWidth(text) {
@@ -1415,7 +1424,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 else if (i === 1) { align.horizontal = "left"; align.wrapText = true; }
                 else if (i === 6) {
                   align.horizontal = "left"; align.wrapText = true; align.vertical = "top";
-                  cell.font = { size: 7 };  // 備考は 7pt で表示
+                  // 備考は 7pt + 等幅フォント (ＭＳ ゴシック) で表示し、
+                  // テキスト中のスペース揃えが崩れないようにする
+                  cell.font = { name: "ＭＳ ゴシック", size: 7 };
                 }
                 else if (i === 4 || i === 5) {
                   align.horizontal = "right";
