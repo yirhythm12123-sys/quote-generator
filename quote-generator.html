@@ -259,7 +259,7 @@
 
       <h3>顧客情報</h3>
       <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
-        <label>会社名（「株式会社」不要）<input type="text" v-model="quote.customer.company"></label>
+        <label>会社名<input type="text" v-model="quote.customer.company"></label>
       </div>
 
       <h3>担当営業情報</h3>
@@ -1026,7 +1026,10 @@
 
           // 宛名（2行構成）+ 見積メタデータ（右）
           // 3行目フォーマット: "{担当営業会社名} {顧客発行会社名} 担当営業 {担当営業姓}様"
-          const _cname = quote.customer.company || "";
+          // 顧客会社名に "株式会社" が前後どちらに付いていても剥がす (前後の空白も併せて除去)
+          const _stripKabushiki = (s) =>
+            (s || "").replace(/^[\s　]*株式会社[\s　]*/, "").replace(/[\s　]*株式会社[\s　]*$/, "").trim();
+          const _cname = _stripKabushiki(quote.customer.company);
           const _customRadio = document.getElementById("sc-custom-radio");
           const _isCustom = _customRadio && _customRadio.checked;
           const _salesCo = (_isCustom ? quote.salesCompanyOther : quote.salesCompany) || "";
