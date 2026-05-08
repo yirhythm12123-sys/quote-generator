@@ -15,47 +15,95 @@
     h1 { font-size: 1.6rem; margin: 0 0 16px; }
     .usage-guide {
       background: linear-gradient(135deg, #eef6ff 0%, #f4f9ff 100%);
-      border: 1px solid #b6d4f0; border-radius: 8px;
-      padding: 12px 16px; margin-bottom: 16px;
+      border: 1px solid #b6d4f0; border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 16px;
       transition: box-shadow 0.2s;
     }
-    .usage-guide:hover { box-shadow: 0 2px 8px rgba(43, 93, 143, 0.08); }
+    .usage-guide:hover { box-shadow: 0 2px 12px rgba(43, 93, 143, 0.10); }
     .usage-guide summary {
-      cursor: pointer; font-weight: bold; color: #1b4f7a; font-size: 1rem;
+      cursor: pointer; font-weight: bold; color: #1b4f7a; font-size: 1.05rem;
       list-style: none; user-select: none;
     }
     .usage-guide summary::-webkit-details-marker { display: none; }
     .usage-guide summary::before {
-      content: "▶"; display: inline-block; margin-right: 6px; font-size: 0.75rem;
+      content: "▶"; display: inline-block; margin-right: 8px; font-size: 0.78rem;
       transition: transform 0.2s; color: #2c5d8f;
     }
-    .usage-guide[open] summary { margin-bottom: 12px; }
+    .usage-guide[open] summary { margin-bottom: 14px; }
     .usage-guide[open] summary::before { transform: rotate(90deg); }
-    .usage-guide .guide-body { font-size: 0.88rem; line-height: 1.65; color: #333; }
+    .usage-guide .guide-body { font-size: 0.88rem; line-height: 1.7; color: #333; }
+    .usage-guide .guide-intro {
+      background: #fff; border: 1px solid #d9e6f3; border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .usage-guide .guide-intro .flow {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      font-size: 0.85rem; color: #1b4f7a; font-weight: 600;
+    }
+    .usage-guide .guide-intro .flow .arrow { color: #7aa3c8; font-weight: normal; }
+    .usage-guide .guide-intro .flow .pill {
+      background: #eef6ff; border: 1px solid #b6d4f0; border-radius: 14px;
+      padding: 2px 10px; font-size: 0.82rem;
+    }
     .usage-guide .guide-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;
     }
     .usage-guide .guide-section {
-      background: #fff; border: 1px solid #d9e6f3; border-radius: 6px;
-      padding: 10px 14px;
+      background: #fff; border: 1px solid #d9e6f3; border-radius: 8px;
+      padding: 12px 16px; position: relative;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
     .usage-guide .guide-section h4 {
-      margin: 0 0 6px; font-size: 0.92rem; color: #1b4f7a;
-      padding-bottom: 4px; border-bottom: 1px solid #e3edf6;
+      margin: 0 0 8px; font-size: 0.96rem; color: #1b4f7a;
+      padding-bottom: 6px; border-bottom: 1px solid #e3edf6;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .usage-guide .step-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px;
+      background: linear-gradient(135deg, #2c5d8f 0%, #4a86bf 100%); color: #fff;
+      font-size: 0.78rem; font-weight: bold; flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(43, 93, 143, 0.25);
+    }
+    .usage-guide .substep {
+      margin-top: 8px; padding: 6px 0 6px 10px; border-left: 2px solid #d9e6f3;
+    }
+    .usage-guide .substep-title {
+      font-weight: 600; color: #2c5d8f; font-size: 0.86rem; margin-bottom: 2px;
       display: flex; align-items: center; gap: 6px;
     }
-    .usage-guide ul { padding-left: 1.2em; margin: 0; }
+    .usage-guide .substep-title::before {
+      content: "▸"; color: #7aa3c8; font-size: 0.75rem;
+    }
+    .usage-guide ul { padding-left: 1.3em; margin: 2px 0; }
     .usage-guide li { margin-bottom: 3px; }
-    .usage-guide em { color: #c44; font-style: normal; font-weight: bold; font-size: 0.82rem; }
+    .usage-guide em { color: #c44; font-style: normal; font-weight: bold; font-size: 0.78rem;
+      background: #fff0f0; border: 1px solid #f4cccc; border-radius: 3px; padding: 0 4px; margin-right: 2px;
+    }
     .usage-guide strong { color: #1b4f7a; }
     .usage-guide code {
       background: #f4f8fc; border: 1px solid #d9e6f3; border-radius: 3px;
       padding: 1px 5px; font-size: 0.8rem; color: #2c5d8f;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
     }
+    .usage-guide kbd {
+      background: #fff; border: 1px solid #b6c5d4; border-bottom-width: 2px;
+      border-radius: 4px; padding: 1px 6px; font-size: 0.78rem; color: #1b4f7a;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+    }
+    .usage-guide .tip {
+      margin-top: 8px; padding: 6px 10px; border-radius: 4px;
+      background: #f0f7e8; border-left: 3px solid #7eb53f;
+      font-size: 0.82rem; color: #3d5e1f;
+    }
+    .usage-guide .tip::before { content: "💡 "; }
     .usage-guide .guide-note {
-      margin: 10px 0 0; padding: 8px 12px;
-      background: #fff8e1; border-left: 3px solid #ffc107; border-radius: 4px;
-      font-size: 0.83rem; color: #5d4e16;
+      margin: 12px 0 0; padding: 10px 14px;
+      background: linear-gradient(90deg, #fff8e1 0%, #fffbed 100%);
+      border-left: 4px solid #ffc107; border-radius: 4px;
+      font-size: 0.85rem; color: #5d4e16;
     }
     h2 { font-size: 1.2rem; margin: 24px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #2c5d8f; }
     h3 { font-size: 1rem; margin: 16px 0 6px; color: #2c5d8f; }
@@ -216,54 +264,167 @@
     <h1>見積書自動作成ツール</h1>
 
     <details class="usage-guide">
-      <summary>📖 使い方ガイド</summary>
+      <summary>📖 使い方ガイド <span style="font-weight: normal; font-size: 0.82rem; color: #5a7a99; margin-left: 6px;">(クリックで開閉)</span></summary>
       <div class="guide-body">
+
+        <div class="guide-intro">
+          <div style="font-size: 0.92rem; color: #1b4f7a;"><strong>🎯 4ステップで担当営業向け見積Excelを生成</strong></div>
+          <div class="flow">
+            <span class="pill">① 基本情報</span><span class="arrow">→</span>
+            <span class="pill">② 明細入力</span><span class="arrow">→</span>
+            <span class="pill">③ 案の管理</span><span class="arrow">→</span>
+            <span class="pill">④ Excel出力</span>
+          </div>
+        </div>
+
         <div class="guide-grid">
 
+          <!-- ===== STEP 1 ===== -->
           <div class="guide-section">
-            <h4>📝 ① 基本情報を入力</h4>
-            <ul>
-              <li><strong>共通情報</strong>: 案件名 / 発行日 / 有効期限</li>
-              <li><strong>顧客情報</strong>: 会社名</li>
-              <li><strong>担当営業</strong>: 会社名(タブで「一覧から選択」⇄「自由記入」切替) / 姓</li>
-            </ul>
+            <h4><span class="step-badge">1</span> 基本情報を入力</h4>
+            <div class="substep">
+              <div class="substep-title">共通情報</div>
+              <ul>
+                <li><strong>案件名</strong>(任意) / <strong>発行日</strong>(本日が初期値) / <strong>有効期限</strong></li>
+              </ul>
+            </div>
+            <div class="substep">
+              <div class="substep-title">顧客情報</div>
+              <ul>
+                <li><strong>会社名</strong>のみ入力。<code>株式会社</code>が前後に付いていてもExcel出力時に自動で除去</li>
+              </ul>
+            </div>
+            <div class="substep">
+              <div class="substep-title">担当営業情報</div>
+              <ul>
+                <li><strong>会社名</strong>: <code>一覧から選択</code> ⇄ <code>自由記入</code> をタブで切替</li>
+                <li><strong>担当営業（姓）</strong>: 姓のみを入力(例: <code>山田</code>) → Excel上は「担当営業 山田様」と表示</li>
+              </ul>
+            </div>
           </div>
 
+          <!-- ===== STEP 2 ===== -->
           <div class="guide-section">
-            <h4>📋 ② 明細を入力</h4>
-            <ul>
-              <li><strong>費用区分</strong>を選ぶと <em>単位・備考</em> が自動セット</li>
-              <li><strong>品目プリセット</strong>選択で 単価・利益モード・備考 が自動入力</li>
-              <li><em>NEW</em> <strong>セット品目</strong>(デジタルギフト・決済アプリ連携・POS接続方式 等)はどれか1つ選ぶだけで関連区分の行も自動追加</li>
-              <li>月の従量料金は <code>±1.5%</code> (0.1%刻み)の調整プルダウン付き</li>
-              <li>出値単価はカンマ不要(フォーカスを外すと自動整形)</li>
-              <li>顧客出値は端数なら千円単位で自動切上げ。<code>+1,000〜+9,000</code> で微調整、「元に戻す」でリセット</li>
-              <li><em>NEW</em> 行先頭の <code>⋮⋮</code> ハンドルを<strong>ドラッグ</strong>して明細行を並べ替え可能</li>
-            </ul>
+            <h4><span class="step-badge">2</span> 明細を入力</h4>
+
+            <div class="substep">
+              <div class="substep-title">2-1. 費用区分を選ぶ</div>
+              <ul>
+                <li>各行の先頭セルから <code>初期</code> / <code>月額基本</code> / <code>月額従量</code> / <code>都度</code> を選択</li>
+                <li>選んだ瞬間に<strong>単位・備考</strong>の既定値が入る</li>
+              </ul>
+            </div>
+
+            <div class="substep">
+              <div class="substep-title">2-2. 品目プリセットで一括入力</div>
+              <ul>
+                <li><strong>品目名</strong>のプルダウンから選ぶと <strong>単価・単位・備考・利益モード</strong>を自動セット</li>
+                <li><em>セット</em> <strong>セット品目</strong>(POS接続方式 / デジタルギフト / 決済アプリ連携 等)はどれか1つ選ぶだけで関連する区分の行も<strong>自動追加</strong></li>
+              </ul>
+              <div class="tip">プリセット選択は何度でもやり直せます。区分を変えるとプリセット候補も自動で切替わる。</div>
+            </div>
+
+            <div class="substep">
+              <div class="substep-title">2-3. 出元と利益モード</div>
+              <ul>
+                <li><strong>出元</strong> = <code>部</code> / <code>SE</code> を選択</li>
+                <li><strong>利益モード</strong>は出元×費用区分で選択肢が動的に変化:
+                  <ul>
+                    <li><code>部+営業</code> = 出値÷0.8÷0.9 (両者乗せ)</li>
+                    <li><code>営業のみ</code> = 出値÷0.9</li>
+                    <li><code>部のみ</code> = 出値÷0.8 (SE月額のみ)</li>
+                    <li><code>そのまま</code> = 利益乗せなし</li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+
+            <div class="substep">
+              <div class="substep-title">2-4. 出値単価と顧客出値</div>
+              <ul>
+                <li><strong>出値単価</strong>はカンマ不要。フォーカスを外すと自動でカンマ整形</li>
+                <li><strong>顧客出値</strong>は端数があれば<strong>千円単位で自動切上げ</strong></li>
+                <li>右の調整プルダウンで <code>+1,000〜+9,000</code> 加算 → 「<code>元に戻す</code>」でリセット</li>
+              </ul>
+            </div>
+
+            <div class="substep">
+              <div class="substep-title">2-5. 月額従量料金の率調整</div>
+              <ul>
+                <li>「<strong>月の従量料金</strong>」プリセットは <code>±1.5%</code> を <code>0.1%刻み</code>で調整可能</li>
+                <li>例: 売上の3.0%が基準の場合、<code>+0.5%</code>選択で「売上の3.5%」と備考に反映</li>
+              </ul>
+            </div>
+
+            <div class="substep">
+              <div class="substep-title">2-6. 行を追加・削除・並べ替え</div>
+              <ul>
+                <li>表下の「<strong>行を追加</strong>」で新規行、行末の「<strong>削除</strong>」で削除</li>
+                <li><em>NEW</em> 行頭の <kbd>⋮⋮</kbd> ハンドルを<strong>ドラッグ</strong>すると行の並べ替えが可能(タッチ対応)</li>
+              </ul>
+            </div>
+
+            <div class="substep">
+              <div class="substep-title">2-7. 備考欄の自動サイズ</div>
+              <ul>
+                <li><strong>横幅</strong>: 全行の中で<strong>最長行に合わせて自動拡張</strong>(全行統一)</li>
+                <li><strong>縦幅</strong>: 各行ごとに改行数に合わせて<strong>自動フィット</strong></li>
+                <li>等幅フォントで表示され、Excel出力時もそのままレイアウトを維持</li>
+              </ul>
+            </div>
           </div>
 
+          <!-- ===== STEP 3 ===== -->
           <div class="guide-section">
-            <h4>📑 ③ 案の管理</h4>
-            <ul>
-              <li>「案を追加」で複数案を並行作成 (1案 = 1シート)</li>
-              <li>タブ<strong>ドラッグ</strong>で順番入替 → そのままシート順に反映</li>
-              <li>削除時、案A/B/… は自動繰り上げ。固有名は保持</li>
-              <li>1案のみは「案をリセット」で明細のみ初期化(共通情報は保持)</li>
-            </ul>
+            <h4><span class="step-badge">3</span> 案を管理</h4>
+            <div class="substep">
+              <div class="substep-title">複数案の並行作成</div>
+              <ul>
+                <li>「<strong>案を追加</strong>」で <code>案A</code> / <code>案B</code>… と並行管理 (Excelでは <strong>1案 = 1シート</strong>)</li>
+                <li>「<strong>案名変更</strong>」で固有名を付与可能 (例: <code>標準プラン</code>)</li>
+              </ul>
+            </div>
+            <div class="substep">
+              <div class="substep-title">タブのドラッグで並べ替え</div>
+              <ul>
+                <li>タブ左の <kbd>⠿</kbd> をドラッグして順番入替 → Excel のシート順にもそのまま反映</li>
+                <li>削除すると <code>案A/B/…</code> は自動繰り上げ。<strong>固有名はそのまま保持</strong></li>
+              </ul>
+            </div>
+            <div class="substep">
+              <div class="substep-title">案をリセット</div>
+              <ul>
+                <li>案が1つの場合だけ表示。明細のみ初期化し、<strong>共通情報・顧客・担当営業はそのまま保持</strong></li>
+              </ul>
+            </div>
           </div>
 
+          <!-- ===== STEP 4 ===== -->
           <div class="guide-section">
-            <h4>📊 ④ サマリ確認 & Excel出力</h4>
-            <ul>
-              <li><strong>内部用サマリ</strong>で顧客出値・企画依頼金額・営業利益・SE出値・粗利を区分ごとに確認</li>
-              <li>「Excel出力」で <code>【会社名様】担当営業向け御見積書(案件名)_YYYYMMDD.xlsx</code> を生成</li>
-              <li>横向きA4 / 1ページ自動スケーリング / 自社情報・印枠を自動配置</li>
-            </ul>
+            <h4><span class="step-badge">4</span> サマリ確認 → Excel出力</h4>
+            <div class="substep">
+              <div class="substep-title">4-1. 内部用サマリで利益確認</div>
+              <ul>
+                <li>各案の下に展開される<strong>内部用サマリ</strong>パネルで以下を一覧:</li>
+                <li><code>顧客出値</code> / <code>企画依頼金額</code> / <code>営業利益</code> / <code>SE出値</code> / <code>粗利</code></li>
+                <li>区分ごとの小計と案合計、最下部に<strong>粗利率(%)</strong>も表示</li>
+              </ul>
+            </div>
+            <div class="substep">
+              <div class="substep-title">4-2. Excel出力</div>
+              <ul>
+                <li>「<strong>Excel出力</strong>」ボタンで自動生成・ダウンロード</li>
+                <li>ファイル名: <code>【会社名様】担当営業向け御見積書(案件名)_YYYYMMDD.xlsx</code></li>
+                <li>レイアウト: <strong>横向きA4 / 1ページ自動スケール</strong> / TOPPAN自社情報・担当上長印枠を自動配置</li>
+                <li>備考は等幅フォント(<code>ＭＳ ゴシック</code>)で全文が見える行高・列幅で出力</li>
+                <li>各案の末尾に<strong>内部用サマリ</strong>セクションを付与 (※社外秘)</li>
+              </ul>
+            </div>
           </div>
 
         </div>
 
-        <p class="guide-note">⚠️ <strong>内部用サマリ(社外秘)</strong> がExcelに含まれます。顧客送付前に必ず削除してください。</p>
+        <p class="guide-note">⚠️ <strong>内部用サマリ(社外秘)</strong>はExcelの各シート末尾に含まれます。<br>顧客に送付する前に該当セクションを必ず削除してください。</p>
       </div>
     </details>
 
