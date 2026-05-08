@@ -271,8 +271,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             <h4>📝 ① 基本情報を入力</h4>
             <ul>
               <li><strong>共通情報</strong>: 案件名 / 発行日 / 有効期限</li>
-              <li><strong>顧客情報</strong>: 発行会社コード(半角7桁) / 会社名</li>
-              <li><strong>担当営業</strong>: 会社名(タブで「一覧から選択」⇄「自由記入」切替) / 氏名 / 部署名</li>
+              <li><strong>顧客情報</strong>: 会社名</li>
+              <li><strong>担当営業</strong>: 会社名(タブで「一覧から選択」⇄「自由記入」切替) / 姓</li>
             </ul>
           </div>
 
@@ -323,12 +323,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
       <h3>顧客情報</h3>
       <div class="form-grid">
-        <label>発行会社コード（半角数字7桁）
-          <input type="text" v-model="quote.customer.companyCode"
-                 placeholder="例: 7130001" maxlength="7" inputmode="numeric"
-                 pattern="[0-9]{7}" title="半角数字7桁で入力してください"
-                 @input="quote.customer.companyCode = quote.customer.companyCode.replace(/[^0-9]/g, '').slice(0, 7)">
-        </label>
         <label>会社名<input type="text" v-model="quote.customer.company"></label>
       </div>
 
@@ -348,8 +342,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           </select>
           <input class="sc-custom-input" type="text" v-model="quote.salesCompanyOther" placeholder="会社名を入力">
         </div>
-        <label>担当営業氏名<input type="text" v-model="quote.salesContact"></label>
-        <label class="full">部署名<input type="text" v-model="quote.salesDepartment" placeholder="例: 情報ソリューションBU セキュアDX事業部 ..."></label>
+        <label>担当営業（姓）<input type="text" v-model="quote.salesContact" placeholder="例: 山田"></label>
       </div>
     </section>
 
@@ -726,10 +719,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           quoteNumber: "",
           issueDate: todayISO(),
           validUntil: "",
-          customer: { companyCode: "", company: "" },
+          customer: { company: "" },
           salesCompany: "TOPPAN株式会社",
           salesCompanyOther: "",
-          salesDepartment: "",
           salesContact: "",
           cases: [newCase("案A")],
         });
@@ -1097,19 +1089,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           row += 2;
 
           // 宛名（2行構成）+ 見積メタデータ（右）
-          const _ccode = quote.customer.companyCode || "";
+          // 3行目フォーマット: "{担当営業会社名} {顧客発行会社名} 担当営業 {担当営業姓}様"
           const _cname = quote.customer.company || "";
           const _customRadio = document.getElementById("sc-custom-radio");
           const _isCustom = _customRadio && _customRadio.checked;
           const _salesCo = (_isCustom ? quote.salesCompanyOther : quote.salesCompany) || "";
-          const _salesDept = quote.salesDepartment || "";
-          const _salesPerson = quote.salesContact || "";
-          const _bracketHead = [_ccode, _cname].filter(Boolean).join("：");
-          const _bracket = _bracketHead ? `【${_bracketHead} ご担当営業】` : "";
-          const _addr1Suffix = _salesPerson ? `${_salesPerson} 様` : "";
-          const addressee1 = `${_bracket}${_addr1Suffix}`.trim();
-          const _affilParts = [_salesCo, _salesDept].filter(Boolean).join(" ");
-          const addressee2 = _affilParts ? `所属：${_affilParts}` : "";
+          const _salesSurname = (quote.salesContact || "").trim();
+          const _addr1Suffix = _salesSurname ? `担当営業 ${_salesSurname}様` : "";
+          const addressee1 = [_salesCo, _cname, _addr1Suffix].filter(Boolean).join(" ");
+          const addressee2 = "";  // 4行目左 (A4) は空欄
 
           const metaTopRow = row;  // F:H 自社情報ブロック開始行
 
