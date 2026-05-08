@@ -1104,11 +1104,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
           const metaTopRow = row;  // F:H 自社情報ブロック開始行
 
-          // Row N: 宛名1行目 + 見積番号
+          // Row N: 宛名はここでは出さない (A3 は空。右側のみ 見積番号)
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = addressee1;
-          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(addressee1, 68, 14, 9), bold: true };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
           ws.getCell(row, 6).value = "見積番号";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
@@ -1117,16 +1114,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle" };
           row++;
 
-          // Row N+1: 宛名2行目（所属）+ 発行日（罫線下を 2 行目に付与）
+          // Row N+1: 宛名 (○○様) + 発行日（罫線下を 1 行目に付与）
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = addressee2;
-          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(addressee2, 68, 11, 8) };
+          ws.getCell(row, 1).value = addressee1;
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(addressee1, 68, 14, 9), bold: true };
           ws.getCell(row, 1).border = { bottom: { style: "thin" } };
           ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
           ws.getCell(row, 6).value = "発行日";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
-          ws.getCell(row, 7).value = quote.issueDate;
+          ws.getCell(row, 7).value = (quote.issueDate || "").replace(/-/g, "/");
           ws.getCell(row, 7).font = { size: 10 };
           ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle" };
           row++;
@@ -1136,7 +1133,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getCell(row, 6).value = "有効期限";
           ws.getCell(row, 6).font = { size: 10 };
           ws.mergeCells(row, 7, row, 8);
-          ws.getCell(row, 7).value = quote.validUntil;
+          ws.getCell(row, 7).value = (quote.validUntil || "").replace(/-/g, "/");
           ws.getCell(row, 7).font = { size: 10 };
           ws.getCell(row, 7).alignment = { horizontal: "left", vertical: "middle" };
           row++;
@@ -1159,11 +1156,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.getRow(row).height = Math.max(affilText.split("\n").length * 20 + 16, 150);
           row++;
 
-          // Row N+4: 導入メッセージ（下寄せ）+ 住所（label F + 値 G-H 複数行）
+          // Row N+4: 左側は空 + 住所（label F + 値 G-H 複数行）
           ws.mergeCells(row, 1, row, 5);
-          ws.getCell(row, 1).value = "担当営業向け御見積は下記の通りです。ご査収ください。";
-          ws.getCell(row, 1).font = { name: "游ゴシック", size: 13, bold: true };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "bottom", wrapText: true };
           ws.getCell(row, 6).value = "住所";
           ws.getCell(row, 6).font = { size: 9 };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
@@ -1177,6 +1171,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           // 印枠ラベル行（ラベルは画像内に描画済みなのでセルテキストは不要）
           // ※ 行は確保するだけ（高さ既定）
           row++;
+
+          // 導入メッセージは A9（印枠と同じ行の左側）に配置、フォント少し大きめ
+          ws.mergeCells(row, 1, row, 5);
+          ws.getCell(row, 1).value = "担当営業向け御見積は下記の通りです。ご査収ください。";
+          ws.getCell(row, 1).font = { name: "游ゴシック", size: 15, bold: true };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
           // 印枠画像（担当・上長、ラベル入り、同一サイズ）
           // 列幅(備考列)を広げても 担当印 と 上長印 が離れないよう、
