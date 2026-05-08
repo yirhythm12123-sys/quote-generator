@@ -398,7 +398,7 @@
                   </select>
                 </div>
               </td>
-              <td><textarea v-model="item.note" rows="2" style="width:100%; resize:vertical; font-size:0.8rem;"></textarea></td>
+              <td><textarea v-model="item.note" v-note-size="item" rows="2" style="width:100%; min-width:140px; min-height:40px; resize:both; font-size:0.8rem;"></textarea></td>
               <td><button class="danger small" @click="removeLine(i)">削除</button></td>
             </tr>
           </tbody>
@@ -647,6 +647,38 @@
     function newCase(name) { return { name, lineItems: [newLineItem()] }; }
 
     const { createApp, reactive, computed, ref } = Vue;
+
+    // 備考 textarea のサイズを item.noteWidth / item.noteHeight に永続化する Vue ディレクティブ
+    // - mount 時に保存値があれば復元
+    // - ユーザーが resize ハンドルでドラッグすると ResizeObserver が発火し item に書き戻す
+    const NoteSizeDirective = {
+      mounted(el, binding) {
+        const item = binding.value;
+        if (item && item.noteWidth) el.style.width = item.noteWidth + "px";
+        if (item && item.noteHeight) el.style.height = item.noteHeight + "px";
+        // 初期マウント時の自然サイズを記録し、それより変わった場合のみ "ユーザー resize" とみなす
+        let initW = 0, initH = 0;
+        requestAnimationFrame(() => {
+          initW = el.offsetWidth;
+          initH = el.offsetHeight;
+        });
+        const obs = new ResizeObserver(() => {
+          // 横方向: inline style.width が付いていれば確実にユーザー操作
+          // 縦方向: 同様
+          if (el.style.width) {
+            const w = parseFloat(el.style.width);
+            if (Number.isFinite(w)) item.noteWidth = w;
+          }
+          if (el.style.height) {
+            const h = parseFloat(el.style.height);
+            if (Number.isFinite(h)) item.noteHeight = h;
+          }
+        });
+        obs.observe(el);
+        el._noteSizeObs = obs;
+      },
+      unmounted(el) { if (el._noteSizeObs) el._noteSizeObs.disconnect(); }
+    };
 
     createApp({
       setup() {
@@ -1008,9 +1040,19 @@
           }
           // 列幅は line item と内部用サマリの両方で見切れないように設定
           // (col 3/4 はサマリの企画依頼金額・営業利益にも使われる)
+          // 備考列(col 7)は ユーザーが HTML 側で textarea を横方向に伸ばした
+          // 場合、その最大幅を反映する。 px → Excel 列幅単位 = (px - 5) / 7
+          const DEFAULT_NOTE_WIDTH = 30;
+          let noteColWidth = DEFAULT_NOTE_WIDTH;
+          for (const it of c.lineItems) {
+            if (it.noteWidth && it.noteWidth > 0) {
+              const w = Math.max(0, (it.noteWidth - 5) / 7);
+              if (w > noteColWidth) noteColWidth = w;
+            }
+          }
           ws.columns = [
             { width: 6 }, { width: 28 }, { width: 14 }, { width: 14 }, { width: 14 },
-            { width: 14 }, { width: 30 }, { width: 14 },
+            { width: 14 }, { width: noteColWidth }, { width: 14 },
           ];
           const COLS = 8;
           let row = 1;
@@ -1199,10 +1241,11 @@
                 cell.alignment = align;
               });
               // 備考の wrap 後行数を見積もって行高を確保
-              // 備考列幅 30, 7pt フォントで 全角 ≈ 18 文字/行 で wrap すると仮定 (やや保守的)
-              // 1 行あたり 13pt + 上下パディング 8pt で改行後の行も見切れない高さを確保
+              // - 備考列幅は実際の noteColWidth (HTML 側 resize 反映) に応じて 全角文字数を再計算
+              // - 1 行あたり 13pt + 余白 8pt
+              // - HTML 側 textarea が高さ resize されている場合 (item.noteHeight) は px→pt 換算した値も下限に加える
               const noteText = item.note || "";
-              const NOTE_CHARS_PER_LINE = 18;
+              const charsPerLine = Math.max(8, Math.floor(noteColWidth * 0.6));  // 7pt 全角 ≈ 列幅×0.6 文字
               const visualLineCount = (txt) => {
                 if (!txt) return 0;
                 let n = 0;
@@ -1211,12 +1254,14 @@
                   for (const ch of seg) {
                     visualLen += /[ -~]/.test(ch) ? 1 : 2;  // 全角=2, 半角=1
                   }
-                  n += Math.max(1, Math.ceil(visualLen / (NOTE_CHARS_PER_LINE * 2)));
+                  n += Math.max(1, Math.ceil(visualLen / (charsPerLine * 2)));
                 }
                 return n;
               };
               const noteLines = visualLineCount(noteText);
-              const minHeightForNote = Math.max(24, noteLines * 13 + 8);
+              const calcHeightForNote = Math.max(24, noteLines * 13 + 8);
+              const userHeightPt = (item.noteHeight && item.noteHeight > 0) ? item.noteHeight * 0.75 : 0;
+              const minHeightForNote = Math.max(calcHeightForNote, userHeightPt);
               ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, minHeightForNote);
               row++;
             });
@@ -1399,7 +1444,9 @@
           dragoverIdx, onDragStart, onDrop, onTouchStart, onTouchMove, onTouchEnd,
         };
       },
-    }).mount("#app");
+    })
+    .directive("note-size", NoteSizeDirective)
+    .mount("#app");
     // Vue が無事マウントできた = フォールバック表示は不要
     var _fb = document.getElementById("vue-fallback");
     if (_fb) _fb.style.display = "none";
