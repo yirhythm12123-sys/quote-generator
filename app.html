@@ -352,7 +352,9 @@
               <div class="substep-title">2-5. 月額従量料金の率調整</div>
               <ul>
                 <li>「<strong>月の従量料金</strong>」プリセットは <code>±1.5%</code> を <code>0.1%刻み</code>で調整可能</li>
-                <li>例: 売上の3.0%が基準の場合、<code>+0.5%</code>選択で「売上の3.5%」と備考に反映</li>
+                <li>例: 月の入金金額に対して <code>1.5%</code> が基準の場合、<br>
+                  <code>-0.5%</code> を選択すると「月の入金金額に対して <code>1.0%</code>」と<br>
+                  <strong>出値単価・自動計算額・顧客出値</strong>に反映</li>
               </ul>
             </div>
 
@@ -795,19 +797,25 @@
         monthly_base:  "決済アプリ連携基本利用料",
         monthly_meter: "決済アプリ連携トランザクション処理料金",
       },
-      // === 2 区分セット (初期 + 月額基本) ===
+      // === 3 区分セット (初期 + 月額基本 + 月額従量) ===
       { name: "POS接続方式(Value'Sネット)",
-        initial: "POS接続方式(Value'Sネット)",         monthly_base: "POS接続方式(Value'Sネット)" },
+        initial: "POS接続方式(Value'Sネット)",         monthly_base: "POS接続方式(Value'Sネット)",
+        monthly_meter: "月の従量料金" },
       { name: "POS接続方式(専用線)",
-        initial: "POS接続方式(専用線)",                 monthly_base: "POS接続方式(専用線)" },
+        initial: "POS接続方式(専用線)",                 monthly_base: "POS接続方式(専用線)",
+        monthly_meter: "月の従量料金" },
       { name: "POS接続方式(クレジットネットワーク)",
-        initial: "POS接続方式(クレジットネットワーク)", monthly_base: "POS接続方式(クレジットネットワーク)" },
+        initial: "POS接続方式(クレジットネットワーク)", monthly_base: "POS接続方式(クレジットネットワーク)",
+        monthly_meter: "月の従量料金" },
       { name: "専用端末接続方式",
-        initial: "専用端末接続方式",                    monthly_base: "専用端末接続方式" },
+        initial: "専用端末接続方式",                    monthly_base: "専用端末接続方式",
+        monthly_meter: "月の従量料金" },
       { name: "Web接続方式",
-        initial: "Web接続方式",                         monthly_base: "Web接続方式" },
+        initial: "Web接続方式",                         monthly_base: "Web接続方式",
+        monthly_meter: "月の従量料金" },
       { name: "PC決済画面方式",
-        initial: "PC決済画面方式",                      monthly_base: "PC決済画面方式" },
+        initial: "PC決済画面方式",                      monthly_base: "PC決済画面方式",
+        monthly_meter: "月の従量料金" },
     ];
     function findPresetSet(feeType, presetName) {
       return PRESET_SETS.find(s => s[feeType] === presetName);
