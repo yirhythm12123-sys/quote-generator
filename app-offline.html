@@ -484,7 +484,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                   </select>
                 </div>
               </td>
-              <td><textarea v-model="item.note" v-note-size="item" rows="2" style="width:100%; min-width:140px; min-height:40px; resize:both; font-size:0.8rem;"></textarea></td>
+              <td><textarea v-model="item.note" v-note-autoheight rows="1"
+                  :style="{ width: noteUniformWidthPx + 'px', resize: 'none', fontSize: '0.8rem', minHeight: '24px', overflow: 'hidden' }"></textarea></td>
               <td><button class="danger small" @click="removeLine(i)">削除</button></td>
             </tr>
           </tbody>
@@ -628,9 +629,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         { name: "同時導入ギフトカードモール",         price: 600000,  profit: "none",
           note: "他の接続方式と合わせてギフトカードモールも導入する場合の初期導入費用" },
         { name: "クレジットチャージ",                 price: 50000,   profit: "none",
-          note: "オプション機能のクレジットチャージを導入される場合の初期導入費用" },
+          note: "オプション機能のクレジットチャージを導入する場合の初期導入費用" },
         { name: "オートチャージ",                     price: 400000,  profit: "none",
-          note: "オプション機能のオートチャージを導入される場合の初期導入費用" },
+          note: "オプション機能のオートチャージを導入する場合の初期導入費用" },
         { name: "デジタルギフト導入費",               price: 400000,  profit: "none",
           unit: "式",
           note: "オプション機能「デジタルギフト」の導入にかかる初期費用" },
@@ -645,7 +646,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           note: "POS接続方式(専用線)の月の基本利用料金" },
         { name: "POS接続方式(クレジットネットワーク)", price: 120000, profit: "none",
           note: "POS接続方式(クレジットネットワーク)の月の基本利用料金" },
-        { name: "専用端末接続方式",                   price: 120000, profit: "none" },
+        { name: "専用端末接続方式",                   price: 120000, profit: "none",
+          note: "専用端末接続方式の月の基本利用料金" },
         { name: "Web接続方式",                        price: 120000, profit: "none",
           note: "Web接続方式の月の基本利用料金" },
         { name: "PC決済画面方式",                     price: 120000, profit: "none",
@@ -755,37 +757,44 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     const { createApp, reactive, computed, ref } = Vue;
 
-    // 備考 textarea のサイズを item.noteWidth / item.noteHeight に永続化する Vue ディレクティブ
-    // - mount 時に保存値があれば復元
-    // - ユーザーが resize ハンドルでドラッグすると ResizeObserver が発火し item に書き戻す
-    const NoteSizeDirective = {
-      mounted(el, binding) {
-        const item = binding.value;
-        if (item && item.noteWidth) el.style.width = item.noteWidth + "px";
-        if (item && item.noteHeight) el.style.height = item.noteHeight + "px";
-        // 初期マウント時の自然サイズを記録し、それより変わった場合のみ "ユーザー resize" とみなす
-        let initW = 0, initH = 0;
-        requestAnimationFrame(() => {
-          initW = el.offsetWidth;
-          initH = el.offsetHeight;
-        });
-        const obs = new ResizeObserver(() => {
-          // 横方向: inline style.width が付いていれば確実にユーザー操作
-          // 縦方向: 同様
-          if (el.style.width) {
-            const w = parseFloat(el.style.width);
-            if (Number.isFinite(w)) item.noteWidth = w;
-          }
-          if (el.style.height) {
-            const h = parseFloat(el.style.height);
-            if (Number.isFinite(h)) item.noteHeight = h;
-          }
-        });
-        obs.observe(el);
-        el._noteSizeObs = obs;
+    // 備考 textarea の高さ自動調整ディレクティブ
+    // 内容の改行に応じて scrollHeight に合わせて高さをフィット (per-row)。
+    // 横幅は別途 noteUniformWidthPx (computed) で全行統一指定するためここでは扱わない。
+    function _autoFitNoteHeight(el) {
+      el.style.height = "auto";
+      el.style.height = (el.scrollHeight + 2) + "px";
+    }
+    const NoteAutoHeightDirective = {
+      mounted(el) {
+        _autoFitNoteHeight(el);
+        const handler = () => _autoFitNoteHeight(el);
+        el._noteAutoFit = handler;
+        el.addEventListener("input", handler);
       },
-      unmounted(el) { if (el._noteSizeObs) el._noteSizeObs.disconnect(); }
+      updated(el) {
+        // v-model による外部更新 (プリセット選択など) でも追従
+        if (el._noteAutoFit) requestAnimationFrame(el._noteAutoFit);
+      },
+      unmounted(el) {
+        if (el._noteAutoFit) el.removeEventListener("input", el._noteAutoFit);
+      }
     };
+
+    // 備考の "最長行ピクセル幅" を算出するためのキャンバス計測ヘルパ
+    // textarea CSS と概ね一致するフォントを指定 (font-size:0.8rem ≒ 12.8px / 游ゴシック系)
+    const _NOTE_MEASURE_FONT = '12.8px "Yu Gothic", "游ゴシック", "Hiragino Sans", "Meiryo", sans-serif';
+    const _noteCanvas = document.createElement("canvas");
+    const _noteCtx = _noteCanvas.getContext("2d");
+    function maxLinePixelWidth(text) {
+      if (!text) return 0;
+      _noteCtx.font = _NOTE_MEASURE_FONT;
+      let max = 0;
+      for (const line of String(text).split("\n")) {
+        const w = _noteCtx.measureText(line).width;
+        if (w > max) max = w;
+      }
+      return max;
+    }
 
     createApp({
       setup() {
@@ -802,6 +811,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         });
         const activeCaseIndex = ref(0);
         const activeCase = computed(() => quote.cases[activeCaseIndex.value]);
+
+        // 備考 textarea の統一横幅 (現在 active な案の全行で最長の単行幅に合わせる)
+        // 単位: px。最小 160px / 最大 800px (画面ハミ出し抑制)
+        const noteUniformWidthPx = computed(() => {
+          const c = activeCase.value;
+          if (!c || !c.lineItems || !c.lineItems.length) return 200;
+          let maxW = 0;
+          for (const it of c.lineItems) {
+            const w = maxLinePixelWidth(it.note);
+            if (w > maxW) maxW = w;
+          }
+          // textarea の左右パディング + スクロールバー余白
+          const widthPx = maxW + 24;
+          return Math.max(160, Math.min(800, widthPx));
+        });
 
         function profitOptions(item) { return PROFIT_MODE_OPTIONS[item.source][item.feeType]; }
         function profitLabel(mode) { return PROFIT_LABELS[mode] || mode; }
@@ -1198,16 +1222,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           }
           // 列幅は line item と内部用サマリの両方で見切れないように設定
           // (col 3/4 はサマリの企画依頼金額・営業利益にも使われる)
-          // 備考列(col 7)は ユーザーが HTML 側で textarea を横方向に伸ばした
-          // 場合、その最大幅を反映する。 px → Excel 列幅単位 = (px - 5) / 7
+          // 備考列(col 7)は 案内全行の "最長の単行ピクセル幅" を計算し、
+          // それが収まる Excel 列幅にする (px → Excel 列幅単位 = (px - 5) / 7)
           const DEFAULT_NOTE_WIDTH = 30;
-          let noteColWidth = DEFAULT_NOTE_WIDTH;
+          let maxNoteLinePx = 0;
           for (const it of c.lineItems) {
-            if (it.noteWidth && it.noteWidth > 0) {
-              const w = Math.max(0, (it.noteWidth - 5) / 7);
-              if (w > noteColWidth) noteColWidth = w;
-            }
+            const w = maxLinePixelWidth(it.note);
+            if (w > maxNoteLinePx) maxNoteLinePx = w;
           }
+          // Excel は 7pt 表示で HTML より字が小さいので px をそのまま使うと過剰。
+          // (HTML 12.8px → Excel 7pt ≒ 9.3px なので 0.73 倍程度で十分)
+          const excelNotePx = maxNoteLinePx * 0.75 + 12;
+          let noteColWidth = Math.max(DEFAULT_NOTE_WIDTH, (excelNotePx - 5) / 7);
           ws.columns = [
             { width: 6 }, { width: 28 }, { width: 14 }, { width: 14 }, { width: 14 },
             { width: 14 }, { width: noteColWidth }, { width: 14 },
@@ -1399,27 +1425,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 cell.alignment = align;
               });
               // 備考の wrap 後行数を見積もって行高を確保
-              // - 備考列幅は実際の noteColWidth (HTML 側 resize 反映) に応じて 全角文字数を再計算
+              // - 列幅は noteColWidth (上で算出) なので、最長行が 1 行に収まる前提
+              // - 改行 (\n) で分割した数 = 表示行数
               // - 1 行あたり 13pt + 余白 8pt
-              // - HTML 側 textarea が高さ resize されている場合 (item.noteHeight) は px→pt 換算した値も下限に加える
               const noteText = item.note || "";
-              const charsPerLine = Math.max(8, Math.floor(noteColWidth * 0.6));  // 7pt 全角 ≈ 列幅×0.6 文字
-              const visualLineCount = (txt) => {
-                if (!txt) return 0;
-                let n = 0;
-                for (const seg of txt.split("\n")) {
-                  let visualLen = 0;
-                  for (const ch of seg) {
-                    visualLen += /[ -~]/.test(ch) ? 1 : 2;  // 全角=2, 半角=1
-                  }
-                  n += Math.max(1, Math.ceil(visualLen / (charsPerLine * 2)));
-                }
-                return n;
-              };
-              const noteLines = visualLineCount(noteText);
-              const calcHeightForNote = Math.max(24, noteLines * 13 + 8);
-              const userHeightPt = (item.noteHeight && item.noteHeight > 0) ? item.noteHeight * 0.75 : 0;
-              const minHeightForNote = Math.max(calcHeightForNote, userHeightPt);
+              const noteLines = noteText ? noteText.split("\n").length : 1;
+              const minHeightForNote = Math.max(24, noteLines * 13 + 8);
               ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, minHeightForNote);
               row++;
             });
@@ -1602,10 +1613,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           dragoverIdx, onDragStart, onDrop, onTouchStart, onTouchMove, onTouchEnd,
           lineDragoverIdx, lineDraggingIdx,
           onLineDragStart, onLineDrop, onLineTouchStart, onLineTouchMove, onLineTouchEnd,
+          noteUniformWidthPx,
         };
       },
     })
-    .directive("note-size", NoteSizeDirective)
+    .directive("note-autoheight", NoteAutoHeightDirective)
     .mount("#app");
     // Vue が無事マウントできた = フォールバック表示は不要
     var _fb = document.getElementById("vue-fallback");
