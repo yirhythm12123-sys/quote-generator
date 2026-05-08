@@ -1143,7 +1143,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ws.mergeCells(row, 1, row, 5);
           ws.getCell(row, 1).value = projVal;
           ws.getCell(row, 1).font = { name: "游ゴシック", size: fitFont(projVal, 68, 13, 9), bold: true };
-          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "middle" };
+          ws.getCell(row, 1).alignment = { horizontal: "left", vertical: "bottom" };
           ws.getCell(row, 6).value = "所属";
           ws.getCell(row, 6).font = { size: 9 };
           ws.getCell(row, 6).alignment = { vertical: "top", horizontal: "left" };
@@ -1262,10 +1262,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 }
                 cell.alignment = align;
               });
-              // 備考の wrap 後行数を見積もって行高を確保 (7pt 行 ≈ 10pt + 余白)
-              // 備考列幅 26 (col idx 7) で 7pt 全角 ≈ 18 文字/行 で wrap すると仮定
+              // 備考の wrap 後行数を見積もって行高を確保
+              // 備考列幅 30, 7pt フォントで 全角 ≈ 18 文字/行 で wrap すると仮定 (やや保守的)
+              // 1 行あたり 13pt + 上下パディング 8pt で改行後の行も見切れない高さを確保
               const noteText = item.note || "";
-              const NOTE_CHARS_PER_LINE = 20;  // 7pt 全角換算で 1 行に収まる目安 (備考列幅 30)
+              const NOTE_CHARS_PER_LINE = 18;
               const visualLineCount = (txt) => {
                 if (!txt) return 0;
                 let n = 0;
@@ -1279,7 +1280,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 return n;
               };
               const noteLines = visualLineCount(noteText);
-              const minHeightForNote = Math.max(22, noteLines * 10 + 4);
+              const minHeightForNote = Math.max(24, noteLines * 13 + 8);
               ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, minHeightForNote);
               row++;
             });
