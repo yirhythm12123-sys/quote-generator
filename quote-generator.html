@@ -137,6 +137,15 @@
     .lines-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
     table.lines { width: 100%; min-width: 1300px; border-collapse: collapse; font-size: 0.85rem; }
     table.lines th, table.lines td { border: 1px solid #d0d0d0; padding: 4px 6px; vertical-align: middle; }
+    table.lines tr.dragging-line { opacity: 0.4; }
+    table.lines tr.dragover-line { box-shadow: inset 0 2px 0 #2c5d8f; background: #eef4fb; }
+    table.lines td.line-drag-handle {
+      width: 26px; min-width: 26px; padding: 4px; text-align: center;
+      cursor: grab; color: #888; user-select: none; font-size: 1rem;
+      background: #fafafa;
+    }
+    table.lines td.line-drag-handle:active { cursor: grabbing; }
+    table.lines td.line-drag-handle:hover { background: #eef2f6; color: #2c5d8f; }
     table.lines th { background: #eef2f6; font-weight: 600; text-align: center; white-space: nowrap; }
     table.lines td input, table.lines td select {
       width: 100%; border: 1px solid transparent; padding: 3px 4px;
@@ -221,6 +230,7 @@
               <li>月の従量料金は <code>±1.5%</code> (0.1%刻み)の調整プルダウン付き</li>
               <li>出値単価はカンマ不要(フォーカスを外すと自動整形)</li>
               <li>顧客出値は端数なら千円単位で自動切上げ。<code>+1,000〜+9,000</code> で微調整、「元に戻す」でリセット</li>
+              <li><em>NEW</em> 行先頭の <code>⋮⋮</code> ハンドルを<strong>ドラッグ</strong>して明細行を並べ替え可能</li>
             </ul>
           </div>
 
@@ -312,6 +322,7 @@
         <table class="lines">
           <thead>
             <tr>
+              <th style="min-width:26px" title="ドラッグで行並べ替え"></th>
               <th style="min-width:90px">費用区分</th>
               <th style="min-width:200px">品目名</th>
               <th style="min-width:60px">数量</th>
@@ -326,7 +337,18 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, i) in activeCase.lineItems" :key="i">
+            <tr v-for="(item, i) in activeCase.lineItems" :key="item.__id || i"
+                :class="{ 'dragover-line': lineDragoverIdx === i, 'dragging-line': lineDraggingIdx === i }"
+                @dragover.prevent="lineDragoverIdx = i"
+                @dragleave="lineDragoverIdx = null"
+                @drop.prevent="onLineDrop(i, $event)">
+              <td class="line-drag-handle" draggable="true"
+                  @dragstart="onLineDragStart(i, $event)"
+                  @dragend="lineDragoverIdx = null; lineDraggingIdx = null"
+                  @touchstart.passive="onLineTouchStart(i, $event)"
+                  @touchmove.prevent="onLineTouchMove($event)"
+                  @touchend="onLineTouchEnd($event)"
+                  title="ドラッグで並べ替え">⋮⋮</td>
               <td>
                 <select v-model="item.feeType" @change="onSourceFeeChange(item)">
                   <option value="initial">初期</option>
@@ -519,19 +541,32 @@
 
     const PRESETS = {
       initial: [
-        { name: "POS接続方式(Value'Sネット)",        price: 2000000, profit: "none" },
-        { name: "POS接続方式(専用線)",                price: 2000000, profit: "none" },
-        { name: "POS接続方式(クレジットネットワーク)", price: 2000000, profit: "none" },
-        { name: "専用端末接続方式",                   price: 600000,  profit: "none" },
-        { name: "Web接続方式",                        price: 600000,  profit: "none" },
-        { name: "PC決済画面方式",                     price: 600000,  profit: "none" },
-        { name: "ギフトカードモール(中継のみ)",        price: 600000,  profit: "none" },
-        { name: "同時導入専用端末接続方式",           price: 200000,  profit: "none" },
-        { name: "同時導入PC決済画面方式",             price: 200000,  profit: "none" },
-        { name: "同時導入Web決済接続方式",            price: 400000,  profit: "none" },
-        { name: "同時導入ギフトカードモール",         price: 600000,  profit: "none" },
-        { name: "クレジットチャージ",                 price: 50000,   profit: "none" },
-        { name: "オートチャージ",                     price: 400000,  profit: "none" },
+        { name: "POS接続方式(Value'Sネット)",        price: 2000000, profit: "none",
+          note: "POS接続方式(Value'Sネット)での初期導入費用" },
+        { name: "POS接続方式(専用線)",                price: 2000000, profit: "none",
+          note: "POS接続方式(専用線)での初期導入費用" },
+        { name: "POS接続方式(クレジットネットワーク)", price: 2000000, profit: "none",
+          note: "POS接続方式(クレジットネットワーク)での初期導入費用" },
+        { name: "専用端末接続方式",                   price: 600000,  profit: "none",
+          note: "専用端末接続方式での初期導入費用" },
+        { name: "Web接続方式",                        price: 600000,  profit: "none",
+          note: "Web接続方式での初期導入費用" },
+        { name: "PC決済画面方式",                     price: 600000,  profit: "none",
+          note: "PC決済画面方式での初期導入費用" },
+        { name: "ギフトカードモール(中継のみ)",        price: 600000,  profit: "none",
+          note: "ギフトカードモール(中継のみ)での初期導入費用" },
+        { name: "同時導入専用端末接続方式",           price: 200000,  profit: "none",
+          note: "他の接続方式と合わせて専用端末接続方式も導入する場合の初期導入費用" },
+        { name: "同時導入PC決済画面方式",             price: 200000,  profit: "none",
+          note: "他の接続方式と合わせてPC決済画面方式も導入する場合の初期導入費用" },
+        { name: "同時導入Web決済接続方式",            price: 400000,  profit: "none",
+          note: "他の接続方式と合わせてWeb決済接続方式も導入する場合の初期導入費用" },
+        { name: "同時導入ギフトカードモール",         price: 600000,  profit: "none",
+          note: "他の接続方式と合わせてギフトカードモールも導入する場合の初期導入費用" },
+        { name: "クレジットチャージ",                 price: 50000,   profit: "none",
+          note: "オプション機能のクレジットチャージを導入される場合の初期導入費用" },
+        { name: "オートチャージ",                     price: 400000,  profit: "none",
+          note: "オプション機能のオートチャージを導入される場合の初期導入費用" },
         { name: "デジタルギフト導入費",               price: 400000,  profit: "none",
           unit: "式",
           note: "オプション機能「デジタルギフト」の導入にかかる初期費用" },
@@ -540,12 +575,17 @@
           note: "オプション機能「決済アプリ連携」の導入にかかる初期費用\nワンタイムバーコード取得用のAPI提供" },
       ],
       monthly_base: [
-        { name: "POS接続方式(Value'Sネット)",        price: 120000, profit: "none" },
-        { name: "POS接続方式(専用線)",                price: 120000, profit: "none" },
-        { name: "POS接続方式(クレジットネットワーク)", price: 120000, profit: "none" },
+        { name: "POS接続方式(Value'Sネット)",        price: 120000, profit: "none",
+          note: "POS接続方式(Value'Sネット)の月の基本利用料金" },
+        { name: "POS接続方式(専用線)",                price: 120000, profit: "none",
+          note: "POS接続方式(専用線)の月の基本利用料金" },
+        { name: "POS接続方式(クレジットネットワーク)", price: 120000, profit: "none",
+          note: "POS接続方式(クレジットネットワーク)の月の基本利用料金" },
         { name: "専用端末接続方式",                   price: 120000, profit: "none" },
-        { name: "Web接続方式",                        price: 120000, profit: "none" },
-        { name: "PC決済画面方式",                     price: 120000, profit: "none" },
+        { name: "Web接続方式",                        price: 120000, profit: "none",
+          note: "Web接続方式の月の基本利用料金" },
+        { name: "PC決済画面方式",                     price: 120000, profit: "none",
+          note: "PC決済画面方式の月の基本利用料金" },
         { name: "デジタルギフト基本利用料",           price: 50000,  profit: "none",
           unit: "月",
           note: "オプション機能「デジタルギフト」の月の基本利用料\nID1万件/月の発行分を含む金額" },
@@ -554,7 +594,8 @@
           note: "10万件/月のトランザクション処理量を含む金額" },
       ],
       monthly_meter: [
-        { name: "月の従量料金",   profit: "none", isMeter: true },
+        { name: "月の従量料金",   profit: "none", isMeter: true,
+          note: "月の総入金金額に対してかかる従量料率" },
         { name: "ネットワーク課金", profit: "none" },
         { name: "デジタルギフト発行費用",                          price: 10,    profit: "none",
           unit: "円/ID",
@@ -635,8 +676,10 @@
       const day = String(d.getDate()).padStart(2, "0");
       return `${d.getFullYear()}-${m}-${day}`;
     }
+    let _lineItemSeq = 0;
     function newLineItem() {
-      return { name: "", source: "部", feeType: "initial", profitMode: "sales",
+      return { __id: ++_lineItemSeq,
+               name: "", source: "部", feeType: "initial", profitMode: "sales",
                quantity: 1, unit: "式", unitOfferPrice: 0,
                priceText: "", customerPrice: null, note: "",
                preset: "", meterAdjustPct: 0, noRounding: false };
@@ -949,6 +992,57 @@
           _touchSrcIdx = null;
           dragoverIdx.value = null;
         }
+
+        // ===== 明細行の並べ替え（HTML5 drag + touch） =====
+        const lineDragoverIdx = ref(null);
+        const lineDraggingIdx = ref(null);
+        let _lineTouchSrcIdx = null;
+        function _reorderLineItem(srcIdx, targetIdx) {
+          if (srcIdx == null || isNaN(srcIdx) || srcIdx === targetIdx) return;
+          const items = activeCase.value.lineItems;
+          if (srcIdx < 0 || srcIdx >= items.length || targetIdx < 0 || targetIdx >= items.length) return;
+          const moved = items.splice(srcIdx, 1)[0];
+          items.splice(targetIdx, 0, moved);
+        }
+        function onLineDragStart(idx, e) {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", String(idx));
+          lineDraggingIdx.value = idx;
+        }
+        function onLineDrop(targetIdx, e) {
+          const srcIdx = Number(e.dataTransfer.getData("text/plain"));
+          _reorderLineItem(srcIdx, targetIdx);
+          lineDragoverIdx.value = null;
+          lineDraggingIdx.value = null;
+        }
+        function onLineTouchStart(idx, e) { _lineTouchSrcIdx = idx; lineDraggingIdx.value = idx; }
+        function onLineTouchMove(e) {
+          if (_lineTouchSrcIdx == null) return;
+          const t = e.touches && e.touches[0];
+          if (!t) return;
+          const el = document.elementFromPoint(t.clientX, t.clientY);
+          const tr = el && el.closest && el.closest("table.lines tbody tr");
+          if (tr && tr.parentElement) {
+            const rows = Array.from(tr.parentElement.children);
+            const idx = rows.indexOf(tr);
+            lineDragoverIdx.value = idx >= 0 ? idx : null;
+          }
+        }
+        function onLineTouchEnd(e) {
+          if (_lineTouchSrcIdx == null) return;
+          const t = e.changedTouches && e.changedTouches[0];
+          const el = t && document.elementFromPoint(t.clientX, t.clientY);
+          const tr = el && el.closest && el.closest("table.lines tbody tr");
+          if (tr && tr.parentElement) {
+            const rows = Array.from(tr.parentElement.children);
+            const targetIdx = rows.indexOf(tr);
+            if (targetIdx >= 0) _reorderLineItem(_lineTouchSrcIdx, targetIdx);
+          }
+          _lineTouchSrcIdx = null;
+          lineDragoverIdx.value = null;
+          lineDraggingIdx.value = null;
+        }
+
         function resetCase() {
           // 案が1件しかないときに「案を削除」の代わりに表示されるリセット用関数
           // 共通情報 / 顧客 / 担当営業 はそのまま、案の中身のみ初期化
@@ -1442,6 +1536,8 @@
           summaryTotals, summaryItemsByFee, summarySubtotals, feeLabel, grossMarginPct,
           fmt, addLine, removeLine, addCase, removeCase, resetCase, renameCase, exportExcel,
           dragoverIdx, onDragStart, onDrop, onTouchStart, onTouchMove, onTouchEnd,
+          lineDragoverIdx, lineDraggingIdx,
+          onLineDragStart, onLineDrop, onLineTouchStart, onLineTouchMove, onLineTouchEnd,
         };
       },
     })
