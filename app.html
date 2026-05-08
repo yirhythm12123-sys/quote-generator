@@ -1512,28 +1512,32 @@
             h.font = { bold: true, size: 12 };
             h.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8EDF2" } };
             row++;
-            const hdrs = ["No.", "品目", "数量", "単位", "単価", "金額", "備考", ""];
+            const hdrs = ["No.", "品目", "数量", "単位", "単価", "金額", "備考"];
+            const hdrFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF2F6" } };
             hdrs.forEach((v, idx) => {
               const cell = ws.getCell(row, idx + 1);
               cell.value = v;
               cell.font = { bold: true };
               cell.alignment = { horizontal: "center" };
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF2F6" } };
+              cell.fill = hdrFill;
               cell.border = thinAll();
             });
+            // 備考列は G:H を結合して 1 セル扱いに
+            ws.mergeCells(row, 7, row, 8);
+            ws.getCell(row, 8).fill = hdrFill;
+            ws.getCell(row, 8).border = thinAll();
             row++;
             items.forEach((item, idx) => {
               const txt = isTextItem(item);
               const nameDisp = item.name + (item.feeType === "monthly_meter" && item.name ? "（従量）" : "");
+              // 数量・単位は monthly_meter (テキスト価格) でも常に表示する
               const vals = [
                 idx + 1,
                 nameDisp || "",
-                txt ? "" : (Number(item.quantity) || 0),
-                txt ? "" : (item.unit || ""),
+                Number(item.quantity) || 0,
+                item.unit || "",
                 txt ? item.priceText : calcUnitPrice(item),
                 txt ? item.priceText : effectiveCustomerPrice(item),
-                item.note || "",
-                "",
               ];
               vals.forEach((v, i) => {
                 const cell = ws.getCell(row, i + 1);
@@ -1542,12 +1546,6 @@
                 const align = { vertical: "middle" };
                 if (i === 0 || i === 2 || i === 3) align.horizontal = "center";
                 else if (i === 1) { align.horizontal = "left"; align.wrapText = true; }
-                else if (i === 6) {
-                  align.horizontal = "left"; align.wrapText = true; align.vertical = "top";
-                  // 備考は 7pt + 等幅フォント (ＭＳ ゴシック) で表示し、
-                  // テキスト中のスペース揃えが崩れないようにする
-                  cell.font = { name: "ＭＳ ゴシック", size: 7 };
-                }
                 else if (i === 4 || i === 5) {
                   align.horizontal = "right";
                   if (!txt) cell.numFmt = "#,##0";
@@ -1555,6 +1553,16 @@
                 }
                 cell.alignment = align;
               });
+              // 備考 (G:H 結合) を独立して書く
+              ws.mergeCells(row, 7, row, 8);
+              const noteCell = ws.getCell(row, 7);
+              noteCell.value = item.note || "";
+              noteCell.border = thinAll();
+              noteCell.alignment = { horizontal: "left", wrapText: true, vertical: "top" };
+              // 備考は 7pt + 等幅フォント (ＭＳ ゴシック) で表示し、
+              // テキスト中のスペース揃えが崩れないようにする
+              noteCell.font = { name: "ＭＳ ゴシック", size: 7 };
+              ws.getCell(row, 8).border = thinAll();
               // 備考の wrap 後行数を見積もって行高を確保
               // - 列幅は noteColWidth (上で算出) なので、最長行が 1 行に収まる前提
               // - 改行 (\n) で分割した数 = 表示行数
@@ -1579,7 +1587,10 @@
             stVal.alignment = { horizontal: "right" };
             stVal.font = { bold: true };
             stVal.border = thinAll();
+            // 備考 (G:H 結合) は空欄で罫線のみ
+            ws.mergeCells(row, 7, row, 8);
             ws.getCell(row, 7).border = thinAll();
+            ws.getCell(row, 8).border = thinAll();
             row += 2;
           }
 
@@ -1599,8 +1610,12 @@
           gtVal.font = { bold: true, size: 12 };
           gtVal.fill = gtLabel.fill;
           gtVal.border = thinAll();
+          // 備考 (G:H 結合) は同じ塗り + 罫線
+          ws.mergeCells(row, 7, row, 8);
           ws.getCell(row, 7).fill = gtLabel.fill;
           ws.getCell(row, 7).border = thinAll();
+          ws.getCell(row, 8).fill = gtLabel.fill;
+          ws.getCell(row, 8).border = thinAll();
           row += 2;
 
           row += 1;
