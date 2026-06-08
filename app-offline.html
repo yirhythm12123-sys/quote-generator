@@ -1460,9 +1460,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           }
           // 列幅は line item と内部用サマリの両方で見切れないように設定
           // (col 3/4 はサマリの企画依頼金額・営業利益にも使われる)
-          // 備考列(col 7)は 案内全行の "最長の単行ピクセル幅" を計算し、
-          // それが収まる Excel 列幅にする (px → Excel 列幅単位 = (px - 5) / 7)
-          const DEFAULT_NOTE_WIDTH = 30;
+          // 備考列は G:H を結合して 1 セル扱いするため、案内全行の
+          // "最長の単行ピクセル幅" を計算し、その値が G+H の合計幅で
+          // ぴったり収まるよう col 7 = total - col 8(14) で逆算する。
+          // (px → Excel 列幅単位 = (px - 5) / 7)
+          const NOTE_COL_8 = 14;           // 固定の col 8 (H 列) 幅
+          const MIN_MERGED_NOTE_WIDTH = 32; // G+H 合計の最小 (備考が短くても余裕を確保)
           let maxNoteLinePx = 0;
           for (const it of c.lineItems) {
             const w = maxLinePixelWidth(it.note);
@@ -1471,10 +1474,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           // Excel は 7pt 表示で HTML より字が小さいので px をそのまま使うと過剰。
           // (HTML 12.8px → Excel 7pt ≒ 9.3px なので 0.73 倍程度で十分)
           const excelNotePx = maxNoteLinePx * 0.75 + 12;
-          let noteColWidth = Math.max(DEFAULT_NOTE_WIDTH, (excelNotePx - 5) / 7);
+          // G+H 合計の Excel 列幅
+          const mergedNoteWidth = Math.max(MIN_MERGED_NOTE_WIDTH, (excelNotePx - 5) / 7);
+          // col 7 = 合計 - col 8 (col 8 は固定 14)
+          const noteColWidth = Math.max(8, mergedNoteWidth - NOTE_COL_8);
           ws.columns = [
             { width: 6 }, { width: 28 }, { width: 14 }, { width: 14 }, { width: 14 },
-            { width: 14 }, { width: noteColWidth }, { width: 14 },
+            { width: 14 }, { width: noteColWidth }, { width: NOTE_COL_8 },
           ];
           const COLS = 8;
           let row = 1;
@@ -1673,12 +1679,27 @@ https://github.com/nodeca/pako/blob/main/LICENSE
               noteCell.font = { name: "ＭＳ ゴシック", size: 7 };
               ws.getCell(row, 8).border = thinAll();
               // 備考の wrap 後行数を見積もって行高を確保
-              // - 列幅は noteColWidth (上で算出) なので、最長行が 1 行に収まる前提
-              // - 改行 (\n) で分割した数 = 表示行数
-              // - 1 行あたり 13pt + 余白 8pt
+              // - 列幅 (G+H 合計) を pixel に換算し、各 \n 行が pixel 幅を
+              //   超えれば wrap 行を加算する
+              // - 1 行あたり 15pt + 余白 10pt で 7pt フォントが見切れない
+              //   ように余裕を持って確保
               const noteText = item.note || "";
-              const noteLines = noteText ? noteText.split("\n").length : 1;
-              const minHeightForNote = Math.max(24, noteLines * 13 + 8);
+              // G+H 合計の利用可能 pixel 幅 (端の余白を引いて Excel 7pt の実描画域)
+              const mergedTotalPx = (noteColWidth + NOTE_COL_8) * 7 + 5 - 12;
+              const visualLineCountForRow = (txt) => {
+                if (!txt) return 1;
+                _noteCtx.font = _NOTE_MEASURE_FONT;
+                let n = 0;
+                for (const seg of String(txt).split("\n")) {
+                  // HTML 12.8px の measureText を Excel 7pt 換算で 0.75 倍 + 安全係数 5%
+                  const segPx = _noteCtx.measureText(seg).width * 0.75 * 1.05;
+                  n += Math.max(1, Math.ceil(segPx / mergedTotalPx));
+                }
+                return n;
+              };
+              const noteLines = visualLineCountForRow(noteText);
+              // 1 行あたり 16pt + 余白 12pt (7pt フォントが確実に表示される高さ)
+              const minHeightForNote = Math.max(24, noteLines * 16 + 12);
               ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, minHeightForNote);
               row++;
             });
