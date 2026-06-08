@@ -408,7 +408,8 @@
               <div class="substep-title">4-1. 内部用サマリで利益確認</div>
               <ul>
                 <li>各案の下に展開される<strong>内部用サマリ</strong>パネルで以下を一覧:</li>
-                <li><code>顧客出値</code> / <code>企画依頼金額</code> / <code>営業利益</code> / <code>SE出値</code> / <code>粗利</code></li>
+                <li><code>顧客出値</code> / <code>企画依頼金額</code> / <code>営業利益</code> / <code>SE出値</code> / <code>外部払い</code> / <code>粗利</code></li>
+                <li><code>外部払い</code>: ICT等の社外への支払い分(プリセット側に既定値を設定)。粗利から自動で差し引かれる</li>
                 <li>区分ごとの小計と案合計、最下部に<strong>粗利率(%)</strong>も表示</li>
               </ul>
             </div>
@@ -629,7 +630,7 @@
                   <thead>
                     <tr>
                       <th>品目</th><th>顧客出値</th><th>企画依頼金額</th>
-                      <th>営業利益</th><th>SE出値</th><th>粗利</th>
+                      <th>営業利益</th><th>SE出値</th><th>外部払い</th><th>粗利</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -639,6 +640,7 @@
                       <td class="num">{{ isTextItem(item) ? '-' : fmt(calcPlanRequest(item)) }}</td>
                       <td class="num">{{ isTextItem(item) ? '-' : fmt(calcSalesProfit(item)) }}</td>
                       <td class="num">{{ isTextItem(item) ? '-' : fmt(calcSEAmount(item)) }}</td>
+                      <td class="num">{{ isTextItem(item) ? '-' : fmt(calcExternalPayment(item)) }}</td>
                       <td class="num">{{ isTextItem(item) ? '-' : fmt(calcGrossProfit(item)) }}</td>
                     </tr>
                     <tr class="total">
@@ -647,6 +649,7 @@
                       <td class="num">{{ fmt(summarySubtotals(ft).planRequest) }}</td>
                       <td class="num">{{ fmt(summarySubtotals(ft).salesProfit) }}</td>
                       <td class="num">{{ fmt(summarySubtotals(ft).seAmount) }}</td>
+                      <td class="num">{{ fmt(summarySubtotals(ft).external) }}</td>
                       <td class="num">{{ fmt(summarySubtotals(ft).grossProfit) }}</td>
                     </tr>
                   </tbody>
@@ -661,6 +664,7 @@
                   <td class="num">{{ fmt(summaryTotals().planRequest) }}</td>
                   <td class="num">{{ fmt(summaryTotals().salesProfit) }}</td>
                   <td class="num">{{ fmt(summaryTotals().seAmount) }}</td>
+                  <td class="num">{{ fmt(summaryTotals().external) }}</td>
                   <td class="num">{{ fmt(summaryTotals().grossProfit) }}</td>
                 </tr>
               </tbody>
@@ -682,7 +686,7 @@
         initial:       ["sales", "none"],
         monthly_base:  ["sales", "none"],
         monthly_meter: ["sales", "none"],
-        spot:          ["sales", "none"],
+        spot:          ["both", "sales", "none"],
       },
       "SE": {
         initial:       ["both"],
@@ -740,17 +744,17 @@
         { name: "オートチャージ",                     price: 400000,  profit: "none",
           note: "オプション機能のオートチャージを導入する場合の初期導入費用" },
         { name: "インスタントウィン（継続利用・民間）",   price: 200000, profit: "none",
-          unit: "式",
-          note: "民間でインスタントウィンを継続利用する場合の初期費用です。\nインスタントウィンキャンペーンを実施していない月にも月額費用は発生します。\nキャンペーンの実施回数に制限はありません。\nキャンペーン規模が大きい場合（店舗数や通常よりも多いアクセスが見込まれる場合）には実施前にご相談ください。" },
+          unit: "式", externalPayment: 10000,
+          note: "民間でインスタントウィンを継続利用する場合の初期費用です。\nICTへの初回登録費用として10,000円が外部払いとして発生します。\nインスタントウィンキャンペーンを実施していない月にも月額費用は発生します。\nキャンペーンの実施回数に制限はありません。\nキャンペーン規模が大きい場合（店舗数や通常よりも多いアクセスが見込まれる場合）には実施前にご相談ください。" },
         { name: "インスタントウィン（継続利用・自治体）", price: 500000, profit: "none",
-          unit: "式",
-          note: "自治体でインスタントウィンを継続利用する場合の初期費用です。\nインスタントウィンキャンペーンを実施していない月にも月額費用は発生します。\nキャンペーンの実施回数に制限はありません。\nキャンペーン規模が大きい場合（店舗数や通常よりも多いアクセスが見込まれる場合）には実施前にご相談ください。" },
+          unit: "式", externalPayment: 10000,
+          note: "自治体でインスタントウィンを継続利用する場合の初期費用です。\nICTへの初回登録費用として10,000円が外部払いとして発生します。\nインスタントウィンキャンペーンを実施していない月にも月額費用は発生します。\nキャンペーンの実施回数に制限はありません。\nキャンペーン規模が大きい場合（店舗数や通常よりも多いアクセスが見込まれる場合）には実施前にご相談ください。" },
         { name: "インスタントウィン（単発利用・民間＋自治体）", price: 200000, profit: "none",
-          unit: "回",
-          note: "民間または自治体でインスタントウィンを単発利用する場合の初期費用です。\nキャンペーンを1回実施ごとに費用発生します。\n実施店舗数の規模感については相談承ります。" },
+          unit: "回", externalPayment: 10000,
+          note: "民間または自治体でインスタントウィンを単発利用する場合の初期費用です。\nICTへの初回登録費用として10,000円が外部払いとして発生します。\nキャンペーンを1回実施ごとに費用発生します。\n実施店舗数の規模感については相談承ります。" },
         { name: "インスタントウィン（お試し利用・民間＆自治体）", price: 200000, profit: "none",
-          unit: "回",
-          note: "民間又は自治体でインスタントウィンをお試し利用する場合の初期費用です。\n実施回数は1回のみです。\n実施店舗数は10店舗以内です。" },
+          unit: "回", externalPayment: 10000,
+          note: "民間又は自治体でインスタントウィンをお試し利用する場合の初期費用です。\nICTへの初回登録費用として10,000円が外部払いとして発生します。\n実施回数は1回のみです。\n実施店舗数は10店舗以内です。" },
         { name: "デジタルギフト導入費",               price: 400000,  profit: "none",
           unit: "式",
           note: "オプション機能「デジタルギフト」の導入にかかる初期費用" },
@@ -796,7 +800,11 @@
           unit: "月",
           note: "月額基本料金に含む10万件/月を超える場合に発生\n\nトランザクション量に応じてトランザクション処理料金が変動します\nトランザクション量〜10万件 … トランザクション処理料金      0円\nトランザクション量10万1件〜… トランザクション処理料金 30,000円\nトランザクション量20万1件〜… トランザクション処理料金 60,000円\nトランザクション量30万1件〜… トランザクション処理料金 90,000円\n              ・\n              ・\n              ・" },
       ],
-      spot: [],
+      spot: [
+        { name: "抽選動画・抽選結果画面差し替え",         price: 20000, profit: "both",
+          unit: "回", externalPayment: 20000,
+          note: "抽選動画や抽選結果画面の差し替え時に発生する都度費用です。\nICTへの外部払いとして20,000円/回が発生します。" },
+      ],
     };
     const DEFAULT_UNITS = { initial: "式", monthly_base: "月", monthly_meter: "月", spot: "式" };
     // 初期+月額基本+月額従量 / 初期+月額基本 等のセット販売される品目の組合せ。
@@ -886,7 +894,8 @@
                name: "", source: "部", feeType: "initial", profitMode: "sales",
                quantity: 1, unit: "式", unitOfferPrice: 0,
                priceText: "", customerPrice: null, note: "",
-               preset: "", meterAdjustPct: 0, noRounding: false };
+               preset: "", meterAdjustPct: 0, noRounding: false,
+               externalPayment: 0 };
     }
     function isTextItem(item) {
       return item.feeType === "monthly_meter" && (item.priceText || "").trim() !== "";
@@ -997,6 +1006,7 @@
           item.customerPrice = null;
           item.meterAdjustPct = 0;
           item.noRounding = false;
+          item.externalPayment = 0;
           // unit/note を費用区分の既定値にリセット
           item.unit = DEFAULT_UNITS[item.feeType] || "式";
           item.note = (item.feeType === "monthly_base") ? "月の基本利用料金" : "";
@@ -1015,6 +1025,7 @@
           if (p.unit !== undefined) item.unit = p.unit;
           if (p.note !== undefined) item.note = p.note;
           if (p.noRounding !== undefined) item.noRounding = p.noRounding;
+          if (p.externalPayment !== undefined) item.externalPayment = p.externalPayment;
           if (p.isMeter) {
             item.priceText = meterText(0);
           }
@@ -1103,7 +1114,14 @@
           if (item.source !== "SE" || isTextItem(item)) return 0;
           return asNum(item.unitOfferPrice) * asNum(item.quantity);
         }
-        function calcGrossProfit(item) { return calcPlanRequest(item) - calcSEAmount(item); }
+        // 外部払い (ICTへの支払いなど): 部の粗利から差し引く
+        function calcExternalPayment(item) {
+          if (isTextItem(item)) return 0;
+          return asNum(item.externalPayment) * asNum(item.quantity);
+        }
+        function calcGrossProfit(item) {
+          return calcPlanRequest(item) - calcSEAmount(item) - calcExternalPayment(item);
+        }
 
         function caseTotalsByFee(group) {
           return activeCase.value.lineItems.filter(i => feeGroupOf(i.feeType) === group)
@@ -1118,9 +1136,10 @@
             acc.planRequest += calcPlanRequest(i);
             acc.salesProfit += calcSalesProfit(i);
             acc.seAmount    += calcSEAmount(i);
+            acc.external    += calcExternalPayment(i);
             acc.grossProfit += calcGrossProfit(i);
             return acc;
-          }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
+          }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, external: 0, grossProfit: 0 });
         }
         function summaryItemsByFee(group, c = activeCase.value) {
           return c.lineItems.filter(i => feeGroupOf(i.feeType) === group);
@@ -1131,9 +1150,10 @@
             acc.planRequest += calcPlanRequest(i);
             acc.salesProfit += calcSalesProfit(i);
             acc.seAmount    += calcSEAmount(i);
+            acc.external    += calcExternalPayment(i);
             acc.grossProfit += calcGrossProfit(i);
             return acc;
-          }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 });
+          }, { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, external: 0, grossProfit: 0 });
         }
         function feeLabel(group) { return FEE_GROUP_LABELS[group] || FEE_LABELS[group] || group; }
         function grossMarginPct(c = activeCase.value) {
@@ -1645,8 +1665,8 @@
 
           row += 1;
           const summaryStartRow = row;  // 印刷可能範囲の終端を計算するために保持
-          // サマリ全体を 1 列右にずらす: 品目 = A:B 結合、C-G に 5 指標
-          ws.mergeCells(row, 1, row, 7);  // A:G のみ塗りつぶし範囲（H は対象外）
+          // サマリ: 品目 = A:B 結合、C-H に 6 指標 (顧客出値/企画依頼金額/営業利益/SE出値/外部払い/粗利)
+          ws.mergeCells(row, 1, row, 8);  // A:H 全体を塗りつぶし範囲
           const sumTitle = ws.getCell(row, 1);
           sumTitle.value = "【内部用サマリ】 ※社外秘";
           sumTitle.font = { bold: true, size: 12, color: { argb: "FFCC4444" } };
@@ -1655,11 +1675,11 @@
 
           const sumFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFAF2" } };
           const subtotalFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7E6D4" } };
-          const grand = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 };
+          const grand = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, external: 0, grossProfit: 0 };
 
-          // サマリの 品目 セルを A:B 結合 + 数値セルを C-G に書き込む共通処理
+          // サマリの 品目 セルを A:B 結合 + 数値セルを C-H に書き込む共通処理
           const writeSummaryRow = (label, metrics, opts) => {
-            // metrics: [customer, planRequest, salesProfit, seAmount, grossProfit] (5要素)
+            // metrics: [customer, planRequest, salesProfit, seAmount, external, grossProfit] (6要素)
             ws.mergeCells(row, 1, row, 2);
             const nameCell = ws.getCell(row, 1);
             nameCell.value = label;
@@ -1672,7 +1692,7 @@
             const bCell = ws.getCell(row, 2);
             bCell.border = thinAll();
             bCell.fill = opts.fill;
-            for (let k = 0; k < 5; k++) {
+            for (let k = 0; k < 6; k++) {
               const cell = ws.getCell(row, 3 + k);
               cell.value = metrics[k];
               cell.border = thinAll();
@@ -1689,15 +1709,15 @@
             const items = c.lineItems.filter(i => feeGroupOf(i.feeType) === group);
             if (items.length === 0) continue;
 
-            // 区分見出し（A:G のみ）
-            ws.mergeCells(row, 1, row, 7);
+            // 区分見出し（A:H）
+            ws.mergeCells(row, 1, row, 8);
             const sectionLabel = ws.getCell(row, 1);
             sectionLabel.value = `【${FEE_GROUP_LABELS[group]}】`;
             sectionLabel.font = { bold: true, color: { argb: "FFCC4444" } };
             sectionLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF6E8" } };
             row++;
 
-            // テーブルヘッダ (品目=A:B 結合, 5指標=C:G)
+            // テーブルヘッダ (品目=A:B 結合, 6指標=C:H)
             ws.mergeCells(row, 1, row, 2);
             const nameHdr = ws.getCell(row, 1);
             nameHdr.value = "品目";
@@ -1707,7 +1727,7 @@
             nameHdr.border = thinAll();
             ws.getCell(row, 2).border = thinAll();
             ws.getCell(row, 2).fill = subtotalFill;
-            ["顧客出値", "企画依頼金額", "営業利益", "SE出値", "粗利"].forEach((v, idx) => {
+            ["顧客出値", "企画依頼金額", "営業利益", "SE出値", "外部払い", "粗利"].forEach((v, idx) => {
               const cell = ws.getCell(row, 3 + idx);
               cell.value = v;
               cell.font = { bold: true };
@@ -1718,20 +1738,21 @@
             row++;
 
             // 明細
-            const sub = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, grossProfit: 0 };
+            const sub = { customer: 0, planRequest: 0, salesProfit: 0, seAmount: 0, external: 0, grossProfit: 0 };
             for (const item of items) {
               const txt = isTextItem(item);
               const cp = calcCustomerPrice(item);
               const pr = calcPlanRequest(item);
               const sp = calcSalesProfit(item);
               const se = calcSEAmount(item);
+              const ex = calcExternalPayment(item);
               const gp = calcGrossProfit(item);
               if (!txt) {
-                sub.customer += cp; sub.planRequest += pr; sub.salesProfit += sp; sub.seAmount += se; sub.grossProfit += gp;
-                grand.customer += cp; grand.planRequest += pr; grand.salesProfit += sp; grand.seAmount += se; grand.grossProfit += gp;
+                sub.customer += cp; sub.planRequest += pr; sub.salesProfit += sp; sub.seAmount += se; sub.external += ex; sub.grossProfit += gp;
+                grand.customer += cp; grand.planRequest += pr; grand.salesProfit += sp; grand.seAmount += se; grand.external += ex; grand.grossProfit += gp;
               }
               const nameDisp = (item.name || "(無題)") + (item.feeType === "monthly_meter" ? "（従量）" : "");
-              const metrics = txt ? [item.priceText, "-", "-", "-", "-"] : [cp, pr, sp, se, gp];
+              const metrics = txt ? [item.priceText, "-", "-", "-", "-", "-"] : [cp, pr, sp, se, ex, gp];
               writeSummaryRow(nameDisp, metrics, { fill: sumFill, bold: false, shrinkText: txt });
               ws.getRow(row).height = Math.max(ws.getRow(row).height || 0, 22);
               row++;
@@ -1740,7 +1761,7 @@
             // 区分小計
             writeSummaryRow(
               `${FEE_GROUP_LABELS[group]} 小計`,
-              [sub.customer, sub.planRequest, sub.salesProfit, sub.seAmount, sub.grossProfit],
+              [sub.customer, sub.planRequest, sub.salesProfit, sub.seAmount, sub.external, sub.grossProfit],
               { fill: subtotalFill, bold: true }
             );
             row += 2;
@@ -1750,7 +1771,7 @@
           const totalFill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE0B2" } };
           writeSummaryRow(
             "案 総合計",
-            [grand.customer, grand.planRequest, grand.salesProfit, grand.seAmount, grand.grossProfit],
+            [grand.customer, grand.planRequest, grand.salesProfit, grand.seAmount, grand.external, grand.grossProfit],
             { fill: totalFill, bold: true }
           );
           row++;
@@ -1777,7 +1798,7 @@
           presetsFor, onPresetChange, onMeterAdjustChange, onMeterAdjustSelect, meterAdjustOptions,
           calcUnitPrice, calcLineTotal, effectiveCustomerPrice, setCustomerPrice, bumpCustomerPrice, onBumpSelect,
           bumpAmounts: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000],
-          calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcGrossProfit,
+          calcCustomerPrice, calcPlanRequest, calcSalesProfit, calcSEAmount, calcExternalPayment, calcGrossProfit,
           caseTotalsByFee, caseGrandTotal,
           summaryTotals, summaryItemsByFee, summarySubtotals, feeLabel, grossMarginPct,
           fmt, addLine, removeLine, addCase, removeCase, resetCase, renameCase, exportExcel,
