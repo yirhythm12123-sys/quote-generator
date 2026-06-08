@@ -906,14 +906,26 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       { name: "PC決済画面方式",
         initial: "PC決済画面方式",                      monthly_base: "PC決済画面方式",
         monthly_meter: "月の従量料金" },
-      // === インスタントウィン (継続利用) 2 区分セット ===
+      // === インスタントウィン (継続利用) 3 区分セット (初期 + 月額基本 + 都度) ===
       { name: "インスタントウィン（継続利用・民間）",
         initial: "インスタントウィン（継続利用・民間）",
-        monthly_base: "インスタントウィン（継続利用・民間）" },
+        monthly_base: "インスタントウィン（継続利用・民間）",
+        spot: "インスタントウィン（抽選動画・抽選結果画面差替え作業費）" },
       { name: "インスタントウィン（継続利用・自治体）",
         initial: "インスタントウィン（継続利用・自治体）",
-        monthly_base: "インスタントウィン（継続利用・自治体）" },
+        monthly_base: "インスタントウィン（継続利用・自治体）",
+        spot: "インスタントウィン（抽選動画・抽選結果画面差替え作業費）" },
+      // === インスタントウィン (単発/お試し) 2 区分セット (初期 + 都度) ===
+      { name: "インスタントウィン（単発利用・民間＋自治体）",
+        initial: "インスタントウィン（単発利用・民間＋自治体）",
+        spot: "インスタントウィン（抽選動画・抽選結果画面差替え作業費）" },
+      { name: "インスタントウィン（お試し利用・民間＆自治体）",
+        initial: "インスタントウィン（お試し利用・民間＆自治体）",
+        spot: "インスタントウィン（抽選動画・抽選結果画面差替え作業費）" },
     ];
+    // findPresetSet は forward direction (初期/月額基本 → 他メンバ自動追加) で利用。
+    // 抽選動画 (spot) は複数セットの spot メンバになっているため、spot 単独選択は
+    // 個別にダイアログ処理し、findPresetSet は呼ばない (onPresetChange 内で分岐)。
     function findPresetSet(feeType, presetName) {
       return PRESET_SETS.find(s => s[feeType] === presetName);
     }
@@ -1095,9 +1107,64 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           }
           // セット品目なら、他の費用区分のセットメンバを自動追加
           if (_skipAutoAdd) return;
+
+          // === 特別ケース: 抽選動画・抽選結果画面差替え作業費 (spot) 単独選択 ===
+          // この preset は 4 つのインスタントウィン プラン全てとセットになっており
+          // どのプラン用なのか自動で判別できないため、ユーザーにダイアログで尋ねる。
+          if (item.feeType === "spot" && item.preset === "インスタントウィン（抽選動画・抽選結果画面差替え作業費）") {
+            // 既に対応する 初期 / 月額基本 が同じ案にあるなら追加不要
+            const pairAlreadyExists = activeCase.value.lineItems.some(li =>
+              li !== item
+              && (li.feeType === "initial" || li.feeType === "monthly_base")
+              && /^インスタントウィン（(継続利用|単発利用|お試し利用)/.test(li.preset || "")
+            );
+            if (pairAlreadyExists) return;
+
+            const wantsPair = confirm(
+              "「インスタントウィン（抽選動画・抽選結果画面差替え作業費）」を追加しました。\n\n" +
+              "セットで「インスタントウィン」の初期/月額基本も追加しますか？\n\n" +
+              "OK → プランを 4 つの選択肢から選択\nキャンセル → 都度費用のみ追加 (単独利用も可)"
+            );
+            if (!wantsPair) return;
+
+            const choice = prompt(
+              "追加するプランを番号で入力してください\n\n" +
+              "  1 : 継続利用（民間）\n" +
+              "  2 : 継続利用（自治体）\n" +
+              "  3 : 単発利用（民間＋自治体）\n" +
+              "  4 : お試し利用（民間＆自治体）\n\n" +
+              "(キャンセルまたは無効な値 → 何も追加しない)"
+            );
+            const choiceMap = {
+              "1": "インスタントウィン（継続利用・民間）",
+              "2": "インスタントウィン（継続利用・自治体）",
+              "3": "インスタントウィン（単発利用・民間＋自治体）",
+              "4": "インスタントウィン（お試し利用・民間＆自治体）",
+            };
+            const setName = choice && choiceMap[choice.trim()];
+            if (!setName) return;
+            const targetSet = PRESET_SETS.find(s => s.name === setName);
+            if (!targetSet) return;
+            for (const ft of ["initial", "monthly_base"]) {
+              const presetName = targetSet[ft];
+              if (!presetName) continue;
+              const exists = activeCase.value.lineItems.some(
+                li => li.feeType === ft && li.preset === presetName
+              );
+              if (exists) continue;
+              const newItem = newLineItem();
+              newItem.feeType = ft;
+              newItem.preset = presetName;
+              onSourceFeeChange(newItem);
+              onPresetChange(newItem, true);
+              activeCase.value.lineItems.push(newItem);
+            }
+            return;
+          }
+
           const set = findPresetSet(item.feeType, item.preset);
           if (!set) return;
-          const setFeeTypes = ["initial", "monthly_base", "monthly_meter"];
+          const setFeeTypes = ["initial", "monthly_base", "monthly_meter", "spot"];
           for (const ft of setFeeTypes) {
             if (ft === item.feeType) continue;
             const presetName = set[ft];
